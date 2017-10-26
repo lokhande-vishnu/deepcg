@@ -12,16 +12,7 @@ class CGD(object):
         self.opt_type = opt_type
         self.grad_type = grad_type
         self.keep_prob = keep_prob
-
-        self.global_step = tf.Variable(0, trainable=False)
-        self.start_train = 0.9990  # Requires very high lambda for Cgd_Fn
-        k = 1
-        self.alpha = tf.train.inverse_time_decay(
-            self.start_train, self.global_step, k, 0)
-        # Lambda
-        self.lam1 = tf.placeholder_with_default(
-            tf.constant(4.0), tf.constant(4.0).shape)
-
+        # network weights
         self.x = tf.placeholder(tf.float32, shape=[None, 784])
         self.y_true = tf.placeholder(tf.float32, shape=[None, 10])
         self.W_conv1 = weight_variable([5, 5, 1, 32])
@@ -32,11 +23,20 @@ class CGD(object):
         self.b_fc1 = bias_variable([1024])
         self.W = weight_variable([1024, 10])
         self.b = bias_variable([10])
-
+        # dropout prob
         self.keep_prob = tf.placeholder(tf.float32)
-        if opt_type == 1:
+        # training config
+        self.global_step = tf.Variable(0, trainable=False)
+        self.start_train = 0.9990  # Requires very high lambda for Cgd_Fn
+        k = 1
+        self.alpha = tf.train.inverse_time_decay(
+            self.start_train, self.global_step, k, 0)
+        # Lambda
+        self.lam1 = tf.placeholder_with_default(
+            tf.constant(4.0), tf.constant(4.0).shape)
+        if self.opt_type == 1:
             # Adam optimizer
-            self.opt = tf.train.AdamOptimizer(1e-4).minimize(self.loss)
+            self.opt = tf.train.AdamOptimizer(1e-4)
         else:
             # Gradient Descent optimizer
             self.opt = tf.train.GradientDescentOptimizer(
