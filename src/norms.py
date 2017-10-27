@@ -1,28 +1,80 @@
-# ### Norms
-def tf_frobenius_norm(M):
-    return tf.reduce_sum(M ** 2) ** 0.5
-
+import tensorflow as tf
+import numpy as np
 # # to implement nuclear norm
-def tf_nuclear_norm(M):
-    st, ut, vt = tf.svd(M,  full_matrices = False)
-    #st2 = tf.diag(st)
-    #st_r = tf.matmul(ut, tf.matmul(st2, tf.transpose(vt)))
-    #print('vish', ut.shape, st2.shape, tf.transpose(vt).shape, st_r.shape)
+def unfold_conv_layer(W, option=True):
+    sizes = tf.shape(W)
+    return tf.reshape(W, shape=[sizes[0] * sizes[1], sizes[2], sizes[3]])
 
-    uk = tf.reshape(ut[:, 0], [10, 1])
-    vk = tf.reshape(vt[:, 0], [1, 784])
-    sk = tf.matmul(uk, vk)
-    #sk = st[0] * sk
-    #print(st.shape, ut.shape, vt.shape)
-    #print('before', type(sk), sk.shape)
-    return sk, _, _, _
+
+def cal_grad_set(gv, alpha, lamda, grad_type):
+    G = gv[0]
+    W = gv[1]
+    # from IPython import embed; embed()
+    g0 = unfold_conv_layer(G)
+    # g1 = tf.transpose(g0, [1, 0, 2])
+    w0 = unfold_conv_layer(W)
+    # w1 = tf.transpose(w0, [1, 0, 2])
+    # new grad
+
+    sizes = tf.shape(w0)
+
+    k = tf.constant(0)
+    # s = get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type);
+
+    s = tf.ones(shape=[sizes[0], sizes[2]])
+    # get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type)
+    def body(k, s):
+        s = tf.concat([s, get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type)], axis=0)
+        k = k + 1
+        return k, s
+
+    def condition(k,s):
+        return k < sizes[1]
+
+    _, s = tf.while_loop(cond=condition, body=body, loop_vars=[k, s], shape_invariants=[k.get_shape(), tf.TensorShape([None,  None])])
+
+    s = s[sizes[0]:, :]
+    g_new = tf.reshape(s, shape=tf.shape(W))
+    return g_new
+#end
+def get_cgd(grad, wt, alpha, lamda, grad_type):
+    if grad_type == 3: # F
+        st = grad / frobenius_norm(grad)
+    elif grad_type == 4:
+        st = top_singular_vector(grad)
+
+    return ((1 - alpha) / alpha) * (wt + lamda * st)
+
+def get_cgd_with_st(st, wt, alpha, lamda):
+    return ((1 - alpha) / alpha) * (wt + lamda * st)
 
 def Sgdnm(grad, wt):
-    return grad #(grad / tf_frobenius_norm(grad))
+    return grad  # (grad / tf_frobenius_norm(grad))
 
-def Cgd_Fn(grad, wt):
-    return ((1 - alpha ) / alpha) * (wt + lam1 * grad / tf_frobenius_norm(grad))
+def frobenius_norm(M):
+    return tf.reduce_sum(M ** 2) ** 0.5
 
-def Cgd_Nn(grad, wt):
-    nn, st, st_r, M = tf_nuclear_norm(grad)
-    return ((1 - alpha ) / alpha) * (wt - lam2 * nn), st, st_r, M
+def top_singular_vector(M):
+    st, ut, vt = tf.svd(M,  full_matrices=False)
+    M_size = tf.shape(M)
+    ut = tf.reshape(ut[:, 0], [M_size[0],1])
+    vt = tf.reshape(vt[:, 0], [M_size[1],1])
+    st = tf.matmul(ut,tf.transpose(vt))
+    return st
+#
+# G = tf.placeholder(tf.float32, shape=[5, 5, 4, 32])
+# W = tf.placeholder(tf.float32, shape=[5, 5, 4, 32])
+# alpha = tf.placeholder(tf.float32)
+# lamda = tf.placeholder(tf.float32)
+# gtype = tf.placeholder(tf.int32)
+# k_n, g_n = cal_grad_set(G, W, alpha, lamda, gtype)
+#
+# # resultx, resulti  = tf.while_loop(condition, body, [x,i], shape_invariants=[tf.TensorShape([None]),i.get_shape()])
+#
+# if __name__ == '__main__':
+#     g = np.random.rand(5, 5, 4, 32)
+#     w = np.random.rand(5, 5, 4, 32)
+#     with tf.Session() as sess:
+#         tf.initialize_all_variables().run()
+#         sz = sess.run(g_n, feed_dict={G:g, W:w, alpha: 0.51, lamda: 10, gtype:4})
+#         from IPython import embed; embed()
