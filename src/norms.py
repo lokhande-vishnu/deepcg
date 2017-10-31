@@ -7,42 +7,33 @@ def unfold_conv_layer(W, option=True):
 
 
 def cal_grad_set(gv, alpha, lamda, grad_type):
-    G = gv[0]
-    W = gv[1]
-    # from IPython import embed; embed()
+    (G, W) = gv
     g0 = unfold_conv_layer(G)
-    # g1 = tf.transpose(g0, [1, 0, 2])
     w0 = unfold_conv_layer(W)
-    # w1 = tf.transpose(w0, [1, 0, 2])
-    # new grad
-
     sizes = tf.shape(w0)
-
+    s = tf.ones(shape=[sizes[0], 1, sizes[2]])
     k = tf.constant(0)
-    # s = get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type);
-
-    s = tf.ones(shape=[sizes[0], sizes[2]])
-    # get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type)
     def body(k, s):
-        s = tf.concat([s, get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type)], axis=0)
+        r_2 = get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type)
+        r_3 = tf.expand_dims(r_2, 1)
+        s = tf.concat([s, r_3], axis=1)
         k = k + 1
         return k, s
-
     def condition(k,s):
         return k < sizes[1]
 
-    _, s = tf.while_loop(cond=condition, body=body, loop_vars=[k, s], shape_invariants=[k.get_shape(), tf.TensorShape([None,  None])])
+    _, s = tf.while_loop(cond=condition, body=body, loop_vars=[k, s], shape_invariants=[k.get_shape(), tf.TensorShape([None,  None, None])])
 
-    s = s[sizes[0]:, :]
+    s = s[:, 1:, :]
+    # s = tf.transpose(s, perm=[1, 0, 2])
     g_new = tf.reshape(s, shape=tf.shape(W))
     return g_new
-#end
+
 def get_cgd(grad, wt, alpha, lamda, grad_type):
     if grad_type == 3: # F
         st = grad / frobenius_norm(grad)
     elif grad_type == 4:
         st = top_singular_vector(grad)
-
     return ((1 - alpha) / alpha) * (wt + lamda * st)
 
 def get_cgd_with_st(st, wt, alpha, lamda):
@@ -55,7 +46,7 @@ def frobenius_norm(M):
     return tf.reduce_sum(M ** 2) ** 0.5
 
 def top_singular_vector(M):
-    st, ut, vt = tf.svd(M,  full_matrices=False)
+    st, ut, vt = tf.svd(M, full_matrices=False)
     M_size = tf.shape(M)
     ut = tf.reshape(ut[:, 0], [M_size[0],1])
     vt = tf.reshape(vt[:, 0], [M_size[1],1])

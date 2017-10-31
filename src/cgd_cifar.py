@@ -5,6 +5,9 @@ from tensorflow.examples.tutorials.mnist import input_data
 import numpy as np
 from numpy import linalg as LA
 from norms import *
+from cifarlib import data_helpers
+import time
+from datetime import datetime
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -12,11 +15,15 @@ class CGD:
     def __init__(self, opt_type, grad_type, alpha, lamda):
         # Hyper-parameters
         self.model_name = 'models/cgd_cifar.ckpt'
+        self.IM_SIZE = 32
+        self.IM_C_DIM = 3
+        self.IM_PIXELS = 3072
+        self.CLASSES = 10
         self.opt_type = opt_type
         self.grad_type = grad_type
         # input
-        self.x = tf.placeholder(tf.float32, shape=[None, 784])
-        self.y_true = tf.placeholder(tf.float32, shape=[None, 10])
+        self.x = tf.placeholder(tf.float32, shape=[None, self.IM_PIXELS])
+        self.y_true = tf.placeholder(tf.int64, shape=[None])
         # network weights
         def weight_variable(shape):
             initial = tf.truncated_normal(shape, stddev=0.1)
@@ -26,15 +33,15 @@ class CGD:
             return tf.Variable(initial)
 
         initializer = tf.contrib.layers.xavier_initializer()
-        self.W_conv1 = weight_variable([5, 5, 1, 32])
+        self.W_conv1 = weight_variable([5, 5, self.IM_C_DIM, 32])
         self.W_conv2 = weight_variable([5, 5, 32, 64])
 
-        self.W_fc1 = weight_variable([7 * 7 * 64, 1024])
+        self.W_fc1 = weight_variable([8 * 8 * 64, 1024])
         self.b_conv1 = bias_variable([32])
         self.b_conv2 = bias_variable([64])
         self.b_fc1 = bias_variable([1024])
-        self.W = weight_variable([1024, 10])
-        self.b = bias_variable([10])
+        self.W = weight_variable([1024, self.CLASSES])
+        self.b = bias_variable([self.CLASSES])
 
         self.theta_w = [self.W_conv1, self.b_conv1, self.W_conv2, \
                     self.b_conv2, self.W_fc1, self.b_fc1, self.W, self.b]
@@ -65,16 +72,13 @@ class CGD:
         return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
     def nnet(self, x):
-        # Re-shape image in the required format # self.x_image: ? x (28x28x1)
-        x_image = tf.reshape(x, [-1, 28, 28, 1])
-        # First Conv + Max-pool layer #h_conv1: ? x (28x28x32), #h_pool1 ? x (14x14x32)
+        x_image = tf.reshape(x, [-1, self.IM_SIZE, self.IM_SIZE, self.IM_C_DIM])
         h_conv1 = tf.nn.relu(self.conv2d(x_image, self.W_conv1) + self.b_conv1)
         h_pool1 = self.max_pool_2x2(h_conv1)
-        # Second Conv + Max-pool layer #h_conv2: ? x (14x14x64), #h_pool2 ? x (7x7x64)
         h_conv2 = tf.nn.relu(self.conv2d(h_pool1, self.W_conv2) + self.b_conv2)
         h_pool2 = self.max_pool_2x2(h_conv2)
-        # Final fully connected layer to get good features #h_pool2: ? x (7x7x64), #h_fc1: 1 x 1024
-        h_pool2_flat = tf.reshape(h_pool2, [-1, 7 * 7 * 64])
+
+        h_pool2_flat = tf.reshape(h_pool2, [-1, 8 * 8 * 64])
         h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, self.W_fc1) + self.b_fc1)
         # Drop-out for the final layer
         h_fc1_drop = tf.nn.dropout(h_fc1, self.keep_prob)
@@ -97,10 +101,10 @@ class CGD:
         # end
         return gvs
 
-    def train(self, mnist, n_iters, print_iters, batch_size):
+    def train(self, data, n_iters, print_iters, batch_size):
         y_pred = self.nnet(self.x)
         # Calculate loss
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+        loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=self.y_true, logits=y_pred))
         # Compute the gradients for a list of variables.
         if self.grad_type > 0:
@@ -108,7 +112,6 @@ class CGD:
             if self.grad_type == 4:
                 gv_non_j = grads_and_vars[:2]
                 update_for_non_j = [(cal_grad_set(gv, self.alpha, self.lamda, 4), gv[1]) for gv in gv_non_j]
-
                 gv_j = grads_and_vars[2:]
                 gv_j_grad = [gv[0] for gv in gv_j]
                 gv_j_w = [gv[1] for gv in gv_j]
@@ -122,30 +125,44 @@ class CGD:
             solver = self.opt.apply_gradients(gvs, global_step=self.global_step)
         else:
             solver = self.opt.minimize(loss, var_list=self.theta_w)
-        # Evaluatation
-        correct_prediction = tf.equal(
-            tf.argmax(y_pred, 1), tf.argmax(self.y_true, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+        # Evaluatation
+        correct_prediction = tf.equal(tf.argmax(y_pred,1), self.y_true)
+        # Operation calculating the accuracy of the predictions
+        accuracy =  tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+        beginTime = time.time()
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
+            zipped_data = zip(data_sets['images_train'], data_sets['labels_train'])
+            batches = data_helpers.gen_batch(list(zipped_data), batch_size, n_iters)
             # Training
             for i in range(n_iters):
-                batch = mnist.train.next_batch(batch_size)
-                feed_dict_keepall = {self.x: batch[0],
-                                     self.y_true: batch[1], self.keep_prob: 1}
+                # Get next input data batch
+                batch = next(batches)
+                images_batch, labels_batch = zip(*batch)
+                # from IPython import embed; embed()
+                feed_dict_keepall = {
+                  self.x: images_batch,
+                  self.y_true: labels_batch,
+                  self.keep_prob: 1.0
+                }
+
                 feed_dict_keepsome = {
-                    self.x: batch[0], self.y_true: batch[1], self.keep_prob: 0.5}
+                  self.x: images_batch,
+                  self.y_true: labels_batch,
+                  self.keep_prob: 0.5
+                }
                 train_accuracy, loss_ = sess.run(
                     [accuracy, loss], feed_dict_keepall)
                 # w1_, w0_, s0_ = sess.run([w1_, w0_, s0_], feed_dict_keepall)
                 # alpha_ = sess.run([self.alpha], feed_dict_keepall)
                 if i % print_iters == 0:
-                    print('Itr:',str(i) + '/' + str(n_iters), '\tTrain accuracy=', train_accuracy, '\toss =', loss_)
+                    print('Itr:',str(i) + '/' + str(n_iters), '\tTrain accuracy=', train_accuracy, '\tLoss =', loss_)
+                    endTime = time.time()
+                    print('Iteration time: {:5.2f}s'.format(endTime - beginTime))
+                    beginTime = time.time()
 
-                    # print('Norm of iterates: w(t+1) =', LA.norm(w1_),
-                    #       'w(t) =', LA.norm(w0_), 's(t) =', LA.norm(s0_))
-                    # print('self.alpha', alpha_)
                 sess.run(solver, feed_dict_keepsome)
             # Testing
             feed_dict_test = {self.x: mnist.test.images,
@@ -159,7 +176,8 @@ class CGD:
 
 if __name__ == '__main__':
     # Inputs and outputs
-    mnist = input_data.read_data_sets('../MNIST_data', one_hot=True)
+    # mnist = input_data.read_data_sets('../MNIST_data', one_hot=True)
+    data_sets = data_helpers.load_data()
     n_iters = 30000
     fraction_print = 0.1
     print_iters = round(fraction_print*n_iters)
@@ -168,5 +186,6 @@ if __name__ == '__main__':
     grad_type = 4
     alpha = 0.99990
     lamda = 4.0
+
     net = CGD(opt_type, grad_type, alpha, lamda)  # Adam - norm SGD
-    net.train(mnist, n_iters, print_iters, batch_size)
+    net.train(data_sets, n_iters, print_iters, batch_size)
