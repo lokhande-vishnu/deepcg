@@ -1,2 +1,2 @@
-model_checkpoint_path: "cgd.ckpt"
-all_model_checkpoint_paths: "cgd.ckpt"
+model_checkpoint_path: "cgd_cifar_fullnn.ckpt"
+all_model_checkpoint_paths: "cgd_cifar_fullnn.ckpt"

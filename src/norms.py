@@ -29,6 +29,7 @@ def cal_grad_set(gv, alpha, lamda, grad_type):
     g_new = tf.reshape(s, shape=tf.shape(W))
     return g_new
 
+
 def get_cgd(grad, wt, alpha, lamda, grad_type):
     if grad_type == 3: # F
         st = grad / frobenius_norm(grad)

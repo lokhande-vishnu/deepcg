@@ -155,18 +155,18 @@ class CGD:
                 }
                 train_accuracy, loss_ = sess.run(
                     [accuracy, loss], feed_dict_keepall)
-                # w1_, w0_, s0_ = sess.run([w1_, w0_, s0_], feed_dict_keepall)
-                # alpha_ = sess.run([self.alpha], feed_dict_keepall)
                 if i % print_iters == 0:
-                    print('Itr:',str(i) + '/' + str(n_iters), '\tTrain accuracy=', train_accuracy, '\tLoss =', loss_)
+                    print('Itr:',str(i) + '/' + str(n_iters), '\tTrain accuracy =', train_accuracy, '\tLoss =', loss_)
                     endTime = time.time()
                     print('Iteration time: {:5.2f}s'.format(endTime - beginTime))
                     beginTime = time.time()
 
                 sess.run(solver, feed_dict_keepsome)
             # Testing
-            feed_dict_test = {self.x: mnist.test.images,
-                              self.y_true: mnist.test.labels, self.keep_prob: 1}
+            feed_dict_test={
+              self.x: data_sets['images_test'],
+              self.y_true: data_sets['labels_test'],
+              self.keep_prob: 1}
             test_accuracy = sess.run(accuracy, feed_dict_test)
             print('test_accuracy', test_accuracy)
             # Saving

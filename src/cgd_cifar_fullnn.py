@@ -63,8 +63,8 @@ class CGD:
 
     def nnet(self, x):
         h1 = tf.nn.relu(tf.matmul(x, self.W_1) + self.b_1)
-        h2 = tf.nn.relu(tf.matmul(h1, self.W_1) + self.b_2)
-        y_pred = tf.matmul(h2, self.W_1) + self.b_3
+        h2 = tf.nn.relu(tf.matmul(h1, self.W_2) + self.b_2)
+        y_pred = tf.matmul(h2, self.W_3) + self.b_3
         return y_pred
 
     def calculate_grad(self, grad_type, grads_and_vars):
@@ -79,6 +79,8 @@ class CGD:
             w0_cgd_nn = grads_and_vars[0][1]
             s0_cgd_nn, st, st_r, M = get_cgd(g0_cgd_nn, w0_cgd_nn, self.alpha, self.lamda, grad_type)
             gvs = [(s0_cgd_nn, gv[1]) for gv in grads_and_vars]
+
+            top_singular_vector(M)
         # end
         return gvs
 
@@ -91,8 +93,9 @@ class CGD:
         if self.grad_type > 0:
             grads_and_vars = self.opt.compute_gradients(loss)
             if self.grad_type == 4:
-                gv_non_j = grads_and_vars[:2]
-                update_for_non_j = [(cal_grad_set(gv, self.alpha, self.lamda, 4), gv[1]) for gv in gv_non_j]
+                gv_non_j = grads_and_vars[:3]
+                update_for_non_j = [(get_cgd(gv[0], gv[1], self.alpha, self.lamda, 4), gv[1]) for gv in gv_non_j]
+
                 gv_j = grads_and_vars[2:]
                 gv_j_grad = [gv[0] for gv in gv_j]
                 gv_j_w = [gv[1] for gv in gv_j]
@@ -140,15 +143,17 @@ class CGD:
                 # w1_, w0_, s0_ = sess.run([w1_, w0_, s0_], feed_dict_keepall)
                 # alpha_ = sess.run([self.alpha], feed_dict_keepall)
                 if i % print_iters == 0:
-                    print('Itr:',str(i) + '/' + str(n_iters), '\tTrain accuracy=', train_accuracy, '\tLoss =', loss_)
+                    print('Itr:',str(i) + '/' + str(n_iters), '\tTrain accuracy =', train_accuracy, '\tLoss =', loss_)
                     endTime = time.time()
                     print('Iteration time: {:5.2f}s'.format(endTime - beginTime))
                     beginTime = time.time()
 
                 sess.run(solver, feed_dict_keepsome)
             # Testing
-            feed_dict_test = {self.x: mnist.test.images,
-                              self.y_true: mnist.test.labels, self.keep_prob: 1}
+            feed_dict_test={
+              self.x: data_sets['images_test'],
+              self.y_true: data_sets['labels_test'],
+              self.keep_prob: 1}
             test_accuracy = sess.run(accuracy, feed_dict_test)
             print('test_accuracy', test_accuracy)
             # Saving
@@ -165,7 +170,7 @@ if __name__ == '__main__':
     print_iters = round(fraction_print*n_iters)
     batch_size = 100
     opt_type = 1
-    grad_type = 3 # frobenius_norm
+    grad_type = 4 # frobenius_norm
     alpha = 0.99990
     lamda = 4.0
 
