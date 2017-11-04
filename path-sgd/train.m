@@ -81,11 +81,34 @@ function layer = train(X, Y, layer, param)
 %                        layer = backward( layer, X(ind,:), Y(ind) );
             end
           case 4 % cgd - nuclear norm
+              for j = 1:depth
+                wb_j = [layer{j}.gradient; layer{j}.gradientTheta]; % (m + 1) x n
+                wb_j = lambda * top_singular_vector(wb_j);
+                w_j = wb_j(1:end-1, :);
+                b_j = wb_j(end, :);
+                layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
+                layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
+              end              
+          case 5 % cgd - frobenius norm
+              for j = 1:depth
+                wb_j = [layer{j}.gradient; layer{j}.gradientTheta]; % (m + 1) x n
+                wb_j = lambda * wb_j ./ norm(wb_j, 'fro');
+                w_j = wb_j(1:end-1, :);
+                b_j = wb_j(end, :);
+                layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
+                layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
+              end
+            case 6 % cgd - mixed - nuclear norm x fro
             % calculate st from gradient 
             for j=2:depth
-                
+                % Weights
+                w_j = lambda * top_singular_vector(layer{j}.gradient);
+                layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
+                % Bias
+                fro_norm = norm(layer{j}.gradientTheta, 'fro');
+                b_j = lambda * layer{j}.gradientTheta ./ fro_norm;
+                layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
             end
-          case 5 % cgd - frobenius norm
       end
     end
 end
@@ -117,7 +140,7 @@ end
 
 function st = top_singular_vector(A)
     [U,S,V] = svd(A);
-    ut = U(1, :);
-    vt = V(1, :);
+    ut = U(:, 1);
+    vt = V(:, 1);
     st = ut * vt';
 end

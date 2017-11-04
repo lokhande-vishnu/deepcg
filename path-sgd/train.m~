@@ -11,23 +11,22 @@ function layer = train(X, Y, layer, param)
     % layer:          the trained neural network
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    eta = 0.01;          % stepsize
-    lambda = 100;
-    param.maxIter = 8000;   % the number of updates 
+    eta = param.eta;          % stepsize
+    lambda = param.lambda;
+    maxIter = param.maxIter;   % the number of updates
+    batchSize = param.batchsize;    % the size of the minibatch    
+    
     fraction = 0.01; % this is just for printing
     printcount = 1;
     
-
-    print_iters = round([fraction:fraction:1]*param.maxIter);
-
+    print_iters = round([fraction:fraction:1]*maxIter);
     depth = length(layer);
-    for i=1:param.maxIter
-    %   i
+    for i=1:maxIter
       if i == print_iters(printcount)
-          fprintf('Iteration number: %d/%d\n', i,param.maxIter);          
+          fprintf('Iteration number: %d/%d\n', i,maxIter);          
           printcount = printcount + 1;
       end
-      ind = randperm( length(Y), param.batchSize);
+      ind = randperm( length(Y), batchSize);
 
       % Forward
       layer = forward( layer, X(ind,:), Y(ind), param.dropout);
@@ -78,16 +77,29 @@ function layer = train(X, Y, layer, param)
 %                       % Forward
 %                        layer = forward( layer, X(ind,:), Y(ind),
 %                        param.dropout);
-%                       
 %                       % Backward
 %                        layer = backward( layer, X(ind,:), Y(ind) );
             end
-          case 4 % cgd - nuclear norm
+          case 5 % cgd - frobenius norm
+              for j = 1:depth
+                wb_j = [layer{j}.gradient; layer{j}.gradientTheta]; % (m + 1) x n
+                wb_j = lambda * wb_j ./ norm(wb_j, 'fro');
+                w_j = wb_j(1:end-1, :);
+                b_j = wb_j(end, :);
+                layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
+                layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
+              end
+            case 6 % cgd - mixed - nuclear norm
             % calculate st from gradient 
             for j=2:depth
-                
+                % Weights
+                w_j = lambda * top_singular_vector(layer{j}.gradient);
+                layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
+                % Bias
+                fro_norm = norm(layer{j}.gradientTheta, 'fro');
+                b_j = lambda * layer{j}.gradientTheta ./ fro_norm;
+                layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
             end
-          case 5 % cgd - frobenius norm
       end
     end
 end
@@ -118,8 +130,8 @@ function path_norm = get_path_norm(layer, gamma)
 end
 
 function st = top_singular_vector(A)
-    [U,S,V] = svd(A)
-    ut = U(1, :);
-    vt = V(1, :)
+    [U,S,V] = svd(A);
+    ut = U(:, 1);
+    vt = V(:, 1);
     st = ut * vt';
 end

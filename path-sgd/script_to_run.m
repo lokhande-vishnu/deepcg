@@ -3,15 +3,15 @@ clear all, close all, clc
 % SETTING
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 param.path_normalized = 3; % path_normalized=false corresponds to SGD and path_normalized=true corresponds to Path-SGD
-param.balanced = false;        % If balanced = false then the initial weights are unbalanced. See the paper for more details.
+param.balanced = true;        % If balanced = false then the initial weights are unbalanced. See the paper for more details.
 param.dropout = 0;            % The amount of dropout. zero means no dropout
 param.batchsize = 100;
 param.eta = 0.0001;          % stepsize
-param.lambda = 10000;
-param.maxIter = 10000;   % the number of updates
+param.lambda = 1000;
+param.maxIter = 8000;   % the number of updates
 
-param.opt_type = 3; % cgd-pathnorm=3
-param.dataset = 3; % 2 for cifar-10
+param.opt_type = 4; % cgd-pathnorm=3
+param.dataset = 2; % 2 for cifar-10
 % DATASET
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if param.dataset == 1

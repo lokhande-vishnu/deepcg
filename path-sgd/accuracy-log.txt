@@ -101,3 +101,22 @@ CIFAR 100
 	Train-error = 0.83000
 	Lossr = 3.56852
 
+%%% Nucl norm 
+11. (11/04) - MNIST
+	eta = 0.0001;          % stepsize
+	maxIter = 8000;   % the number of updates
+	lambda = 1000;
+	dropout = 0;
+	Pred-error = 2.01000
+	Train-error = 0.00000
+	Loss = 0.01654
+
+12. (11/04) - CIFAR 10
+	eta = 0.0001;          % stepsize
+	maxIter = 8000;   % the number of updates
+	lambda = 1000;
+	dropout = 0;
+	Pred-error = 49.07000
+	Train-error = 0.55000
+	Loss = 1.51299
+
