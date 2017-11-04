@@ -27,7 +27,7 @@ if param.dataset == 1
     X_test = X_test'; % N by D matrix
     clear training test
 elseif param.dataset == 2 % cifar 10
-    folder = 'cifar-10';
+    folder = '../dataset/mat/cifar-10';
     X_train = [];
     Y_train = [];
     for i = 1:5 % 5 batches
@@ -40,7 +40,7 @@ elseif param.dataset == 2 % cifar 10
     X_test = im2double(batch.data);
     Y_test = im2double(batch.labels);
 else % cifar-100
-    folder = 'cifar-100';
+    folder = '../dataset/mat/cifar-100';
     data_train = load(strcat(folder, '/train.mat'));
     X_train = im2double(data_train.data);
     Y_train = im2double(data_train.fine_labels);
@@ -68,4 +68,4 @@ prediction_on_test = gather(prediction_on_test{4}.classerr)*100/size(X_test,1);
 
 fprintf('Pred-error = %.5f\n', prediction_on_test);
 fprintf('Train-error = %.5f\n', training_error);
-fprintf('Lossr = %.5f\n', loss_function);
+fprintf('Loss = %.5f\n', loss_function);
