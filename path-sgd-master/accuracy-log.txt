@@ -1,0 +1,103 @@
+
+MNIST dataset
+batch-size = 100
+CGD-pathnorm
+Same architecture
+1. (11/03) default
+	MNIST dataset
+	eta = 0.1;          % stepsize
+	maxIter = 8000;   % the number of updates
+	lambda = 100;
+	dropout = 0
+	Pred-error = 90.2
+	Train-error = 0.89
+
+2. (11/04) with dropout, more epochs, more lambda
+	MNIST dataset
+	eta = 0.0001;          % stepsize
+	maxIter = 15000;   % the number of updates
+	lambda = 10000;
+	dropout = 0.5
+	Pred-error = 2.64
+	Train-error = 0.01
+
+3. (11/04) Without dropout
+	MNIST dataset
+	eta = 0.0001;          % stepsize
+	maxIter = 15000;   % the number of updates
+	lambda = 10000;
+	dropout = 0;
+	Pred-error = 1.83
+	Train-error = 0
+	Loss= 2.165728648790832e-06
+
+4. (11/04) Reduce epochs without dropout
+	MNIST dataset
+	eta = 0.0001;          % stepsize
+	maxIter = 8000;   % the number of updates
+	lambda = 10000;
+	dropout = 0;
+	Pred-error = 1.960000000000000
+	Train-error = 0.010000000000000
+	Loss= 0.007764409456667
+
+5. (11/04) Reduce lambda to 100
+	MNIST dataset
+	eta = 0.0001;          % stepsize
+	maxIter = 8000;   % the number of updates
+	lambda = 100;
+	dropout = 0;
+	Pred-error = 3.010000000000000
+	Train-error = 0.020000000000000
+	Loss= 0.091220725175834
+
+6. (11/04) Reduce epochs without dropout
+	MNIST dataset
+	eta = 0.01;          % stepsize
+	maxIter = 8000;   % the number of updates
+	lambda = 100;
+	dropout = 0;
+	Pred-error = 12.370000000000000
+	Train-error = 0.160000000000000
+	Loss= 0.512113703242010
+
+CIFAR dataset
+7. (11/04) 	
+	eta = 0.001;          % stepsize
+	maxIter = 10000;   % the number of updates
+	lambda = 1000;
+	dropout = 0;
+	Pred-error = 66.81000
+	Train-error = 0.70000
+	Lossr = 2.05117
+
+8. (11/04) Reduce eta and increase lambda	
+	eta = 0.0001;          % stepsize
+	maxIter = 8000;   % the number of updates
+	lambda = 1000;
+	dropout = 0;
+	Pred-error = 51.55000
+	Train-error = 0.42000
+	Lossr = 1.19258
+
+9. (11/04) Increase lambda, maxIter	
+	unbalanced initialization ~ paper
+	eta = 0.0001;          % stepsize
+	maxIter = 10000;   % the number of updates
+	lambda = 10000;
+	dropout = 0;
+	Pred-error = 54.06000
+	Train-error = 0.46000
+	Lossr = 1.40126
+
+CIFAR 100
+10. (11/04) Increase lambda, maxIter	
+	unbalanced initialization ~ paper
+	eta = 0.0001;          % stepsize
+	maxIter = 10000;   % the number of updates
+	lambda = 10000;
+	dropout = 0;
+	Pred-error = 83.54000
+	Train-error = 0.83000
+	Lossr = 3.56852
+

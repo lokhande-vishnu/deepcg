@@ -6,6 +6,8 @@ import numpy as np
 from numpy import linalg as LA
 from norms import *
 import os
+import time
+from datetime import datetime
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
@@ -136,6 +138,7 @@ class CGD:
             tf.argmax(y_pred, 1), tf.argmax(self.y_true, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+        beginTime = time.time()
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             # Training
@@ -150,6 +153,9 @@ class CGD:
                 # w1_, w0_, s0_ = sess.run([w1_, w0_, s0_], feed_dict_keepall)
                 # alpha_ = sess.run([self.alpha], feed_dict_keepall)
                 if i % print_iters == 0:
+                    endTime = time.time()
+                    print('Iteration time: {:5.2f}s'.format(endTime - beginTime))
+                    beginTime = time.time()
                     print('Itr:', str(i) + '/' + str(n_iters),
                           '\tTrain accuracy=', train_accuracy, '\tloss =', loss_)
 
@@ -170,10 +176,10 @@ class CGD:
 if __name__ == '__main__':
     # Inputs and outputs
     mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
-    n_iters = 30000
+    n_iters = 3000
     fraction_print = 0.1
     print_iters = round(fraction_print * n_iters)
-    batch_size = 500
+    batch_size = 100
     opt_type = 1
     grad_type = 4
     alpha = 0.99990

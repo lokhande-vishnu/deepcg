@@ -1,11 +1,30 @@
 import tensorflow as tf
 import numpy as np
-# # to implement nuclear norm
-def unfold_conv_layer(W, option=True):
-    sizes = tf.shape(W)
-    return tf.reshape(W, shape=[sizes[0] * sizes[1], sizes[2], sizes[3]])
+import scipy.sparse.linalg;
+from tensorflow.python.framework import function
 
 
+# SGD
+def Sgdnm(grad, wt):
+    return grad  # (grad / tf_frobenius_norm(grad))
+
+def get_cgd(grad, wt, alpha, lamda, grad_type):
+    if grad_type == 3: # F
+        st = grad / frobenius_norm(grad)
+    elif grad_type == 4:
+        # st = tf.py_func(top_singular_vector, [grad], tf.float32)
+        st = top_singular_vector(grad)
+    return ((1 - alpha) / alpha) * (wt + lamda * st)
+
+def get_cgd_with_st(st, wt, alpha, lamda):
+    return ((1 - alpha) / alpha) * (wt + lamda * st)
+
+
+# frobenius_norm
+def frobenius_norm(M):
+    return tf.reduce_sum(M ** 2) ** 0.5
+
+# 4-dim W
 def cal_grad_set(gv, alpha, lamda, grad_type):
     (G, W) = gv
     g0 = unfold_conv_layer(G)
@@ -29,23 +48,20 @@ def cal_grad_set(gv, alpha, lamda, grad_type):
     g_new = tf.reshape(s, shape=tf.shape(W))
     return g_new
 
+# unfold layer
+def unfold_conv_layer(W, option=True):
+    sizes = tf.shape(W)
+    return tf.reshape(W, shape=[sizes[0] * sizes[1], sizes[2], sizes[3]])
 
-def get_cgd(grad, wt, alpha, lamda, grad_type):
-    if grad_type == 3: # F
-        st = grad / frobenius_norm(grad)
-    elif grad_type == 4:
-        st = top_singular_vector(grad)
-    return ((1 - alpha) / alpha) * (wt + lamda * st)
+# st = tf.placeholder(tf.float32, shape=tf.shape(grad))
+# @function.Defun(tf.float32, func_name="top_singular_vector")
+# def top_singular_vector(M):
+#     # from IPython import embed; embed()
+#     u, sigma, v = scipy.sparse.linalg.svds(M,k=1)
+#     st = u*v;
+#     return st
 
-def get_cgd_with_st(st, wt, alpha, lamda):
-    return ((1 - alpha) / alpha) * (wt + lamda * st)
-
-def Sgdnm(grad, wt):
-    return grad  # (grad / tf_frobenius_norm(grad))
-
-def frobenius_norm(M):
-    return tf.reduce_sum(M ** 2) ** 0.5
-
+# svd
 def top_singular_vector(M):
     st, ut, vt = tf.svd(M, full_matrices=False)
     M_size = tf.shape(M)
