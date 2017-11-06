@@ -90,6 +90,16 @@ CIFAR dataset
 	Train-error = 0.46000
 	Lossr = 1.40126
 
+12. (11/04) - CIFAR 10
+	eta = 0.0001;          % stepsize
+	maxIter = 8000;   % the number of updates
+	lambda = 1000;
+	dropout = 0;
+	Pred-error = 49.07000
+	Train-error = 0.55000
+	Loss = 1.51299
+
+
 CIFAR 100
 10. (11/04) Increase lambda, maxIter	
 	unbalanced initialization ~ paper
@@ -101,22 +111,15 @@ CIFAR 100
 	Train-error = 0.83000
 	Lossr = 3.56852
 
-%%% Nucl norm 
-11. (11/04) - MNIST
+%%% Updated  path norm
+11. (11/04) - CIFAR10
 	eta = 0.0001;          % stepsize
 	maxIter = 8000;   % the number of updates
-	lambda = 1000;
+	lambda = 100;
 	dropout = 0;
-	Pred-error = 2.01000
-	Train-error = 0.00000
-	Loss = 0.01654
+	Elapsed time is 1066.533171 seconds.
+    Pred-error = 53.20000
+    Train-error = 0.56000
+    Loss = 1.43964
 
-12. (11/04) - CIFAR 10
-	eta = 0.0001;          % stepsize
-	maxIter = 8000;   % the number of updates
-	lambda = 1000;
-	dropout = 0;
-	Pred-error = 49.07000
-	Train-error = 0.55000
-	Loss = 1.51299
 

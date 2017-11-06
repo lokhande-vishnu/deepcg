@@ -1,4 +1,4 @@
-function [layer, param] = main(X, Y, param)
+function [layer, train_values] = main(X, Y, param)
 % The main function. It gets the data points and labels as the input, trains a feedforward network on them and return the weights
 %
 % Input
@@ -19,7 +19,7 @@ layer0 = initialize(D, H, labels, param);   % Initializing the network with the 
 
 % TRAINING
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-layer = train( X, Y, layer0, param);        % training the given network on the given data points
+[layer, train_values] = train( X, Y, layer0, param);        % training the given network on the given data points
 
 end
 

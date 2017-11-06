@@ -1,4 +1,4 @@
-function layer = train(X, Y, layer, param)
+function [layer, train_values] = train(X, Y, layer, param)
     % This function optimizes the objective by SGD or Path-SGD (both with minibatches)
     %
     % Inputs
@@ -14,47 +14,52 @@ function layer = train(X, Y, layer, param)
     eta = param.eta;          % stepsize
     lambda = param.lambda;
     maxIter = param.maxIter;   % the number of updates
-    batchSize = param.batchsize;    % the size of the minibatch    
+    batchsize = param.batchsize;    % the size of the minibatch    
     
     fraction = 0.01; % this is just for printing
     printcount = 1;
-    
+    train_values = gpuArray(zeros(maxIter, 3));
     print_iters = round([fraction:fraction:1]*maxIter);
     depth = length(layer);
     for i=1:maxIter
-      if i == print_iters(printcount)
-          fprintf('Iteration number: %d/%d\n', i,maxIter);          
-          printcount = printcount + 1;
-      end
-      ind = randperm( length(Y), batchSize);
+%       if i == print_iters(printcount)
+%           fprintf('Iteration number: %d/%d\n', i,maxIter);          
+%           printcount = printcount + 1;
+%       end
+      ind = randperm( length(Y), batchsize);
 
       % Forward
-      layer = forward( layer, X(ind,:), Y(ind), param.dropout);
-
+      layer = forward( layer, X(ind,:), Y(ind), param.dropout);      
+      % TRAINING ERROR
+      train_values(i, 1) = layer{4}.classerr/batchsize;
+      train_values(i, 2) = sum(layer{depth}.objective);
+%       prediction_on_test = forward(layer, X_test, Y_test, 0);
+%       prediction_on_test = prediction_on_test{4}.classerr *100;
+%       train_values(i, 3) = prediction_on_test;
       % Backward
       layer = backward( layer, X(ind,:), Y(ind) );
 
       % Path-SGD
-      switch param.path_normalized
-          case 1 % path norm
+      switch param.norm
+          case param.NORMAL_PATH_NORM % path norm
             gamma = path_scale( layer, depth );
             for j=2:depth
               layer{j}.W = layer{j}.W - eta * layer{j}.gradient ./ ( gamma{j-1}.in' * gamma{j}.out' );
               layer{j}.theta = layer{j}.theta - eta * layer{j}.gradientTheta ./ gamma{j}.out';
             end
-          case 2 % sgd
+          case param.SGD % sgd
             for j=2:depth
               layer{j}.W = layer{j}.W - eta * layer{j}.gradient;
               layer{j}.theta = layer{j}.theta - eta * layer{j}.gradientTheta;
             end
-          case 3 % cgd - path norm 
+          case param.CONSTRAINT_PATH_NORM % cgd - path norm 
             for j=2:depth 
               gamma = path_scale( layer, depth ); 
     %           path_norm = get_path_norm(layer, gamma)
               gamma_j = gamma{j-1}.in' * gamma{j}.out';
               bias_j = gamma{j}.out';
-              wb_j = [gamma_j; bias_j]; % (m + 1) x n
-
+              wb_j = [gamma_j; bias_j]; % (m + 1) x n               
+              
               gamma_j_root = wb_j.^0.5;
               gamma_j_zero = (gamma_j_root == 0);
               gamma_j_root_dezero = gamma_j_root + gamma_j_zero;
@@ -64,51 +69,70 @@ function layer = train(X, Y, layer, param)
               normed_grad = wb_grad / norm_grad_j;
 
               c = normed_grad ./ gamma_j_root_dezero; %Maybe gamma = 0
-              s_j = -(lambda^0.5) * c;
+              
+              % get the path norm components from the biases
+              temp_bias_path_norm = 0;
+              for k_j = j+1:depth
+                  temp_bias_path_norm = temp_bias_path_norm + layer{k_j}.theta.^2*gamma{k_j}.out;
+              end
+              
+              lambda_j = lambda - temp_bias_path_norm;
+%               if lambda_j < 0
+%                   keyboard;
+%               end
+              s_j = -(lambda_j^0.5 ) * c;
               w_j = s_j(1:end-1, :);
               b_j = s_j(end, :);
               layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
               layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
-               % for zero weight: don't update bias
-               weight_zeros = (layer{j}.W == 0);
-               layer{j}.W = layer{j}.W + (weight_zeros .* 0.00001);
-%                theta_zeros = (layer{j}.theta == 0); layer{j}.theta =
-%                layer{j}.theta + (theta_zeros .* 0.00001);
+              % for zero weight: don't update bias
+              weight_zeros = (layer{j}.W == 0);
+              layer{j}.W = layer{j}.W + (weight_zeros * 10^-7);
+%               theta_zeros = (layer{j}.theta == 0); 
+%               layer{j}.theta = layer{j}.theta + (theta_zeros * 10^-7);
 %                       % Forward
 %                        layer = forward( layer, X(ind,:), Y(ind),
 %                        param.dropout);
 %                       % Backward
 %                        layer = backward( layer, X(ind,:), Y(ind) );
             end
-          case 4 % cgd - nuclear norm
-              for j = 1:depth
+          case param.NUCLEAR_NORM % cgd - nuclear norm
+              for j = 2:depth
                 wb_j = [layer{j}.gradient; layer{j}.gradientTheta]; % (m + 1) x n
-                wb_j = lambda * top_singular_vector(wb_j);
+                wb_j = -lambda * top_singular_vector(wb_j);
                 w_j = wb_j(1:end-1, :);
                 b_j = wb_j(end, :);
                 layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
                 layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
               end              
-          case 5 % cgd - frobenius norm
-              for j = 1:depth
+          case param.FRO_NORM % cgd - frobenius norm
+              for j = 2:depth
                 wb_j = [layer{j}.gradient; layer{j}.gradientTheta]; % (m + 1) x n
-                wb_j = lambda * wb_j ./ norm(wb_j, 'fro');
+                wb_j = -lambda * wb_j ./ norm(wb_j, 'fro');
                 w_j = wb_j(1:end-1, :);
                 b_j = wb_j(end, :);
                 layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
                 layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
               end
-            case 6 % cgd - mixed - nuclear norm x fro
-            % calculate st from gradient 
-            for j=2:depth
-                % Weights
-                w_j = lambda * top_singular_vector(layer{j}.gradient);
-                layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
-                % Bias
-                fro_norm = norm(layer{j}.gradientTheta, 'fro');
-                b_j = lambda * layer{j}.gradientTheta ./ fro_norm;
-                layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
-            end
+          case param.MIXED_NUCLEAR_FRO % cgd - mixed - nuclear norm x fro
+              % calculate st from gradient              
+              frac_rank = 0.7;
+              for j = [2 4] % nuclear norm
+                  lambda_n = min(size(layer{j}.gradient))*frac_rank;
+                  wb_j = [layer{j}.gradient; layer{j}.gradientTheta]; % (m + 1) x n
+                  wb_j = -lambda_n * top_singular_vector(wb_j);
+                  w_j = wb_j(1:end-1, :);
+                  b_j = wb_j(end, :);
+                  layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
+                  layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;                  
+              end
+              j = 3;              
+              wb_j = [layer{j}.gradient; layer{j}.gradientTheta]; % (m + 1) x n
+              wb_j = lambda * wb_j ./ norm(wb_j, 'fro');
+              w_j = wb_j(1:end-1, :);
+              b_j = wb_j(end, :);
+              layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
+              layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
       end
     end
 end
@@ -139,7 +163,7 @@ function path_norm = get_path_norm(layer, gamma)
 end
 
 function st = top_singular_vector(A)
-    [U,S,V] = svd(A);
+    [U,S,V] = svds(A,1);
     ut = U(:, 1);
     vt = V(:, 1);
     st = ut * vt';
