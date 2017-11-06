@@ -17,11 +17,12 @@ layer{depth}.delta = exp( layer{depth}.logscore ) - layer{depth}.target;
 
 % backpropagation
 for i=depth:-1:2
-%     layer{i}.gradient = gpuArray(zeros(size(layer{i}.W)));
-%     layer{i}.gradientTheta = gpuArray(zeros(1,length(layer{i}.theta)));
+    layer{i}.gradient = gpuArray(zeros(size(layer{i}.W)));
+    layer{i}.gradientTheta = gpuArray(zeros(1,length(layer{i}.theta)));
     
-    layer{i}.gradient = zeros(size(layer{i}.W));
-    layer{i}.gradientTheta = zeros(1,length(layer{i}.theta));
+%     layer{i}.gradient = zeros(size(layer{i}.W));
+%     layer{i}.gradientTheta = zeros(1,length(layer{i}.theta));
+
 
     layer{i}.gradient(layer{i-1}.nonzero,layer{i}.nonzero) = layer{i-1}.act' * layer{i}.delta;
     layer{i}.gradientTheta(layer{i}.nonzero) = -sum( layer{i}.delta, 1);

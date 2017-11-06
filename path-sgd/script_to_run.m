@@ -1,25 +1,28 @@
-clear all,close all, clc
-load mnist.mat
+clear all, close all, clc
 
-X_train = training.images;
-X_train = squeeze(reshape(X_train,size(X_train,1)*size(X_train,2),1,size(X_train,3)));
-X_train = X_train'; % N by D matrix
+% SETTING
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+param = init();
+dataset = param.DS_CIFAR10;
+param.norm = param.CONSTRAINT_PATH_NORM;
+param.maxIter = 8000;   % the number of updates
+% Tunning parameters
+param.dropout = 0;      % The amount of dropout. zero means no dropout
+param.eta = 0.00001;     % stepsize
+param.lambda = 1000;     % 
 
-Y_train = training.labels;
+% DATASET
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+[X_train, Y_train, X_test, Y_test] = load_datset(dataset, param);
 
-X_test = test.images;
-X_test = squeeze(reshape(X_test,size(X_test,1)*size(X_test,2),1,size(X_test,3)));
-X_test = X_test'; % N by D matrix
-
-Y_test = test.labels;
-
-clear training test
-
-% X_train = X_train(1:2000,:);
-% Y_train = Y_train(1:2000,:);
+% TRAINING
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% For switching between GPU and CPU, change line 23 in this file and lines
+% 23 and 24 in backward.m file.
 tic
-% layer = main(gpuArray(X_train), gpuArray(Y_train));
-layer = main(X_train, Y_train);
+layer = main(gpuArray(X_train), gpuArray(Y_train), param);
+% layer = main(X_train, Y_train);
 toc
 
+evaluate(X_test, Y_test, layer, param.batchsize)
 

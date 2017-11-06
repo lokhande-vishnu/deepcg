@@ -1,61 +1,69 @@
 import tensorflow as tf
 import numpy as np
-# # to implement nuclear norm
-def unfold_conv_layer(W, option=True):
-    sizes = tf.shape(W)
-    return tf.reshape(W, shape=[sizes[0] * sizes[1], sizes[2], sizes[3]])
+import scipy.sparse.linalg;
+from tensorflow.python.framework import function
 
 
-def cal_grad_set(gv, alpha, lamda, grad_type):
-    G = gv[0]
-    W = gv[1]
-    # from IPython import embed; embed()
-    g0 = unfold_conv_layer(G)
-    # g1 = tf.transpose(g0, [1, 0, 2])
-    w0 = unfold_conv_layer(W)
-    # w1 = tf.transpose(w0, [1, 0, 2])
-    # new grad
+# SGD
+def Sgdnm(grad, wt):
+    return grad  # (grad / tf_frobenius_norm(grad))
 
-    sizes = tf.shape(w0)
-
-    k = tf.constant(0)
-    # s = get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type);
-
-    s = tf.ones(shape=[sizes[0], sizes[2]])
-    # get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type)
-    def body(k, s):
-        s = tf.concat([s, get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type)], axis=0)
-        k = k + 1
-        return k, s
-
-    def condition(k,s):
-        return k < sizes[1]
-
-    _, s = tf.while_loop(cond=condition, body=body, loop_vars=[k, s], shape_invariants=[k.get_shape(), tf.TensorShape([None,  None])])
-
-    s = s[sizes[0]:, :]
-    g_new = tf.reshape(s, shape=tf.shape(W))
-    return g_new
-#end
 def get_cgd(grad, wt, alpha, lamda, grad_type):
     if grad_type == 3: # F
         st = grad / frobenius_norm(grad)
     elif grad_type == 4:
+        # st = tf.py_func(top_singular_vector, [grad], tf.float32)
         st = top_singular_vector(grad)
-
     return ((1 - alpha) / alpha) * (wt + lamda * st)
 
 def get_cgd_with_st(st, wt, alpha, lamda):
     return ((1 - alpha) / alpha) * (wt + lamda * st)
 
-def Sgdnm(grad, wt):
-    return grad  # (grad / tf_frobenius_norm(grad))
 
+# frobenius_norm
 def frobenius_norm(M):
     return tf.reduce_sum(M ** 2) ** 0.5
 
+# 4-dim W
+def cal_grad_set(gv, alpha, lamda, grad_type):
+    (G, W) = gv
+    g0 = unfold_conv_layer(G)
+    w0 = unfold_conv_layer(W)
+    sizes = tf.shape(w0)
+    s = tf.ones(shape=[sizes[0], 1, sizes[2]])
+    k = tf.constant(0)
+    def body(k, s):
+        r_2 = get_cgd(g0[:, k, :], w0[:, k, :], alpha, lamda, grad_type)
+        r_3 = tf.expand_dims(r_2, 1)
+        s = tf.concat([s, r_3], axis=1)
+        k = k + 1
+        return k, s
+    def condition(k,s):
+        return k < sizes[1]
+
+    _, s = tf.while_loop(cond=condition, body=body, loop_vars=[k, s], shape_invariants=[k.get_shape(), tf.TensorShape([None,  None, None])])
+
+    s = s[:, 1:, :]
+    # s = tf.transpose(s, perm=[1, 0, 2])
+    g_new = tf.reshape(s, shape=tf.shape(W))
+    return g_new
+
+# unfold layer
+def unfold_conv_layer(W, option=True):
+    sizes = tf.shape(W)
+    return tf.reshape(W, shape=[sizes[0] * sizes[1], sizes[2], sizes[3]])
+
+# st = tf.placeholder(tf.float32, shape=tf.shape(grad))
+# @function.Defun(tf.float32, func_name="top_singular_vector")
+# def top_singular_vector(M):
+#     # from IPython import embed; embed()
+#     u, sigma, v = scipy.sparse.linalg.svds(M,k=1)
+#     st = u*v;
+#     return st
+
+# svd
 def top_singular_vector(M):
-    st, ut, vt = tf.svd(M,  full_matrices=False)
+    st, ut, vt = tf.svd(M, full_matrices=False)
     M_size = tf.shape(M)
     ut = tf.reshape(ut[:, 0], [M_size[0],1])
     vt = tf.reshape(vt[:, 0], [M_size[1],1])
