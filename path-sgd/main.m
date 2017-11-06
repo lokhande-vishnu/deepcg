@@ -1,4 +1,5 @@
 function [layer, train_values] = main(X, Y, param)
+
 % The main function. It gets the data points and labels as the input, trains a feedforward network on them and return the weights
 %
 % Input
@@ -8,6 +9,7 @@ function [layer, train_values] = main(X, Y, param)
 % Output
 % layer:        The learned neural network. layer{i}.W and layer{i}.threshold are the weights and thresholds of layer i (layer 1 is the input layer).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 % INITIALIZATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -20,6 +22,7 @@ layer0 = initialize(D, H, labels, param);   % Initializing the network with the 
 % TRAINING
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 [layer, train_values] = train( X, Y, layer0, param);        % training the given network on the given data points
+
 
 end
 
