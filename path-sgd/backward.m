@@ -23,6 +23,7 @@ for i=depth:-1:2
 %     layer{i}.gradient = zeros(size(layer{i}.W));
 %     layer{i}.gradientTheta = zeros(1,length(layer{i}.theta));
 
+
     layer{i}.gradient(layer{i-1}.nonzero,layer{i}.nonzero) = layer{i-1}.act' * layer{i}.delta;
     layer{i}.gradientTheta(layer{i}.nonzero) = -sum( layer{i}.delta, 1);
     layer{i-1}.delta = (layer{i}.delta * layer{i}.W(layer{i-1}.nonzero,layer{i}.nonzero)') .* ( layer{i-1}.act > 0);

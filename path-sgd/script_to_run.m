@@ -25,3 +25,4 @@ layer = main(gpuArray(X_train), gpuArray(Y_train), param);
 toc
 
 evaluate(X_test, Y_test, layer, param.batchsize)
+

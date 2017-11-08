@@ -168,3 +168,4 @@ function st = top_singular_vector(A)
     vt = V(:, 1);
     st = ut * vt';
 end
+
