@@ -9,8 +9,9 @@ if ~exist(csv_folder, 'dir')
     mkdir(csv_folder);
 end
 
-% param.lambda_set = [6 7 ];
-% param.eta_set = [5 6 ];
+param.lambda_set = [6 7 8];
+param.eta_set = [4 5 6 ];
+param.dropout_set = [0];
 stat_size = length(param.lambda_set) * length(param.dropout_set) * length(param.eta_set);
 for dataset = 3
     ds_plot_folder = sprintf('%s%d/', plot_folder, dataset);
