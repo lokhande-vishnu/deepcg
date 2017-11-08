@@ -51,10 +51,7 @@ def cal_grad_set(gv, alpha, lamda, grad_type):
 # unfold layer
 def unfold_conv_layer(W, option=True):
     sizes = tf.shape(W)
-    try:
-        return tf.reshape(W, shape=[sizes[0] * sizes[1], sizes[2], sizes[3]])
-    except:
-        from IPython import embed; embed();
+    return tf.reshape(W, shape=[sizes[0] * sizes[1], sizes[2], sizes[3]])
 
 # st = tf.placeholder(tf.float32, shape=tf.shape(grad))
 # @function.Defun(tf.float32, func_name="top_singular_vector")
