@@ -143,48 +143,44 @@ class DCGAN(object):
         self.complete_loss = self.contextual_loss + self.lam*self.perceptual_loss
         self.grad_complete_loss = tf.gradients(self.complete_loss, self.z)
 
-    def get_cgd_grad(self, grads_and_vars, conv_set, gsize):
+    def get_cgd_grad(self, grads_and_vars, conv_set, gsize, grad_type):
         # nuclear norm
         norm_nuclear = 4
         norm_fro = 3
-        alpha = 0.99999
-        lamda = 100
+        alpha = 0.9
+        lamda = 100000
 
-        inds = range(gsize)
-        non_conv_set = [k for k in inds if not(k in conv_set)]
-        gv_non_j = [grads_and_vars[k] for k in conv_set]
-        gv_j = [grads_and_vars[k] for k in non_conv_set]
-        # conv - nuclear
-        update_for_non_j = [
-            (cal_grad_set(gv, alpha, lamda, norm_nuclear), gv[1]) for gv in gv_non_j]
-        # frobenius_norm
-        gv_j_grad = [gv[0] for gv in gv_j]
-        gv_j_w = [gv[1] for gv in gv_j]
-        sum_fb_norm = tf.reduce_sum(
-            [frobenius_norm(m_grad) for m_grad in gv_j_grad])
-        update_for_j = [(get_cgd_with_st(
-            gv[0] / sum_fb_norm, gv[1], alpha, lamda), gv[1]) for gv in gv_j]
+        if grad_type == 4: # nuclear norm
+            inds = range(gsize)
+            non_conv_set = [k for k in inds if not(k in conv_set)]
+            gv_non_j = [grads_and_vars[k] for k in conv_set]
+            gv_j = [grads_and_vars[k] for k in non_conv_set]
+            # conv - nuclear
+            update_for_non_j = [
+                (cal_grad_set(gv, alpha, lamda, norm_nuclear), gv[1]) for gv in gv_non_j]
+            # frobenius_norm
+            gv_j_grad = [gv[0] for gv in gv_j]
+            gv_j_w = [gv[1] for gv in gv_j]
+            sum_fb_norm = tf.reduce_sum(
+                [frobenius_norm(m_grad) for m_grad in gv_j_grad])
+            update_for_j = [(get_cgd_with_st(
+                gv[0] / sum_fb_norm, gv[1], alpha, lamda), gv[1]) for gv in gv_j]
+            # Batch norm
 
-        p_gvs = update_for_non_j + update_for_j
-        orders = conv_set + non_conv_set
-        for k in inds:
-            grads_and_vars[orders[k]] = p_gvs[k]
-        return grads_and_vars
 
-    def get_cgd_grad_fro(self, grads_and_vars, conv_set, gsize):
-        # nuclear norm
-        norm_fro = 3
-        alpha = 0.99999
-        lamda = 100
-
-        gv_j_grad = [gv[0] for gv in grads_and_vars]
-        gv_j_w = [gv[1] for gv in grads_and_vars]
-        sum_fb_norm = tf.reduce_sum(
-            [frobenius_norm(m_grad) for m_grad in gv_j_grad])
-        update_for_j = [(get_cgd_with_st(
-            gv[0] / sum_fb_norm, gv[1], alpha, lamda), gv[1]) for gv in grads_and_vars]
-
-        return update_for_j
+            p_gvs = update_for_non_j + update_for_j
+            orders = conv_set + non_conv_set
+            for k in inds:
+                grads_and_vars[orders[k]] = p_gvs[k]
+            return grads_and_vars
+        elif grad_type == 3:
+            gv_j_grad = [gv[0] for gv in grads_and_vars]
+            gv_j_w = [gv[1] for gv in grads_and_vars]
+            sum_fb_norm = tf.reduce_sum(
+                [frobenius_norm(m_grad) for m_grad in gv_j_grad])
+            update_for_j = [(get_cgd_with_st(
+                gv[0] / sum_fb_norm, gv[1], alpha, lamda), gv[1]) for gv in grads_and_vars]
+            return update_for_j
 
     def train(self, config):
         data = dataset_files(config.dataset)
@@ -192,25 +188,34 @@ class DCGAN(object):
         assert(len(data) > 0)
         # opt
         solver = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1)
-        grad_type = 1
+        grad_type = 3 #frobenius_norm
+        opt_d = True
+        opt_g = False
         if grad_type > 0:
             split_idx = 18
             # d
-            grads_and_vars = solver.compute_gradients(self.d_loss)
-            g_gvs = grads_and_vars[:split_idx]
-            d_grads_and_vars = grads_and_vars[split_idx:]
-            d_conv_sets = [2*x for x in [0, 1, 3, 5]]
-            d_gvs = self.get_cgd_grad_fro(d_grads_and_vars, d_conv_sets, 16)
-            gvs = g_gvs + d_gvs
-            d_optim = solver.apply_gradients(gvs)
-            # g
-            grads_and_vars = solver.compute_gradients(self.g_loss)
-            g_grads_and_vars = grads_and_vars[:split_idx]
-            d_gvs = grads_and_vars[split_idx:]
-            g_conv_sets = [2*x for x in [2, 4, 6, 8]]
-            g_gvs = self.get_cgd_grad_fro(g_grads_and_vars, g_conv_sets, 18)
-            gvs = g_gvs + d_gvs
-            g_optim = solver.apply_gradients(gvs)
+            if opt_d:
+                grads_and_vars = solver.compute_gradients(self.d_loss)
+                g_gvs = grads_and_vars[:split_idx]
+                d_grads_and_vars = grads_and_vars[split_idx:]
+                d_conv_sets = [2*x for x in [0, 1, 3, 5]]
+                b_sets = []
+                d_gvs = self.get_cgd_grad(d_grads_and_vars, d_conv_sets, 16, grad_type)
+                gvs = g_gvs + d_gvs
+                d_optim = solver.apply_gradients(gvs)
+            else:
+                d_optim = solver.minimize(self.d_loss, var_list=self.d_vars)
+            if opt_g:
+                # g
+                grads_and_vars = solver.compute_gradients(self.g_loss)
+                g_grads_and_vars = grads_and_vars[:split_idx]
+                d_gvs = grads_and_vars[split_idx:]
+                g_conv_sets = [2*x for x in [2, 4, 6, 8]]
+                g_gvs = self.get_cgd_grad_fro(g_grads_and_vars, g_conv_sets, 18, grad_type)
+                gvs = g_gvs + d_gvs
+                g_optim = solver.apply_gradients(gvs)
+            else:
+                g_optim = solver.minimize(self.g_loss, var_list=self.g_vars)
         else:
              d_optim = solver.minimize(self.d_loss, var_list=self.d_vars)
              g_optim = solver.minimize(self.g_loss, var_list=self.g_vars)
