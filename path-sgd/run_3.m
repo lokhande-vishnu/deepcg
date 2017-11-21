@@ -5,7 +5,7 @@ poolobj = gcp('nocreate');
 delete(poolobj);
 param = init();
 param.norm = param.CONSTRAINT_PATH_NORM;
-param.maxIter = 15000;   % the number of updates. 10 iterations took 125 seconds approximately including save.
+param.maxIter = 30000;   % the number of updates. 10 iterations took 125 seconds approximately including save.
 
 
 % DATASET
@@ -16,8 +16,11 @@ mkdir('models/',num2str(dataset));
 
 % Tunning parameters
 % parpool(close)
-parpool(2)
+parpool(3)
 tic
+param.lambda_set = [6 7 8];
+param.eta_set = [4 5 6];
+param.dropout_set = [0];
 parfor log_lambda = param.lambda_set
     lambda = 10^log_lambda; 
     param_local = param;
@@ -36,7 +39,7 @@ parfor log_lambda = param.lambda_set
             % STORE
             filename = sprintf('models/%d/%d_lam%d_drop%.1f_eta%d.mat', ...
                 dataset, dataset, log_lambda, dropout, -log_eta);
-            parsave_eval(filename, dataset, log_lambda, dropout, log_eta, param_local,...
+            parsave_eval(filename, dataset, log_lambda, layer, log_eta, param_local,...
                 prediction_on_test, train_values);
         end
     end    

@@ -5,7 +5,7 @@ poolobj = gcp('nocreate');
 delete(poolobj);
 param = init();
 param.norm = param.CONSTRAINT_PATH_NORM;
-param.maxIter = 15000;   % the number of updates. 10 iterations took 125 seconds approximately including save.
+param.maxIter = 18000;   % the number of updates. 10 iterations took 125 seconds approximately including save.
 
 
 % DATASET

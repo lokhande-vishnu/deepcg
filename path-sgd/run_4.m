@@ -1,11 +1,11 @@
 % SETTING
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-reset(gpuDevice(1))
+reset(gpuDevice(4))
 poolobj = gcp('nocreate');
 delete(poolobj);
 param = init();
 param.norm = param.CONSTRAINT_PATH_NORM;
-param.maxIter = 15000;   % the number of updates. 10 iterations took 125 seconds approximately including save.
+param.maxIter = 8000;   % the number of updates. 10 iterations took 125 seconds approximately including save.
 
 
 % DATASET
@@ -31,7 +31,10 @@ parfor log_lambda = param.lambda_set
             [layer, train_values] = main(gpuArray(X_train), gpuArray(Y_train), param_local);
             % EVALUATION
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            prediction_on_test = forward(layer, X_test, Y_test, 0);
+            layer = gather(layer);
+            X_test_l = gather(X_test);
+            Y_test_l = gather(Y_test);
+            prediction_on_test = forward(layer, X_test_l, Y_test_l, 0);
             prediction_on_test = gather(prediction_on_test{4}.classerr)*100/size(X_test,1);
             % STORE
             filename = sprintf('models/%d/%d_lam%d_drop%.1f_eta%d.mat', ...
