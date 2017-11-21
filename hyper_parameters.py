@@ -25,12 +25,20 @@ tf.app.flags.DEFINE_integer('validation_batch_size', 250, '''Validation batch si
 a divisor of 10000 for this task''')
 tf.app.flags.DEFINE_integer('test_batch_size', 125, '''Test batch size''')
 
-tf.app.flags.DEFINE_float('init_lr', 0.1, '''Initial learning rate''')
+tf.app.flags.DEFINE_float('init_lr', 0.0001, '''Initial learning rate''')
 tf.app.flags.DEFINE_float('lr_decay_factor', 0.1, '''How much to decay the learning rate each
 time''')
-tf.app.flags.DEFINE_integer('decay_step0', 40000, '''At which step to decay the learning rate''')
-tf.app.flags.DEFINE_integer('decay_step1', 60000, '''At which step to decay the learning rate''')
+tf.app.flags.DEFINE_integer('decay_step0', 10000, '''At which step to decay the learning rate''')
+tf.app.flags.DEFINE_integer('decay_step1', 20000, '''At which step to decay the learning rate''')
+tf.app.flags.DEFINE_integer('decay_step2', 30000, '''At which step to decay the learning rate''')
+tf.app.flags.DEFINE_integer('decay_step3', 40000, '''At which step to decay the learning rate''')
+tf.app.flags.DEFINE_integer('decay_step4', 50000, '''At which step to decay the learning rate''')
+tf.app.flags.DEFINE_integer('decay_step5', 60000, '''At which step to decay the learning rate''')
+tf.app.flags.DEFINE_integer('decay_step6', 70000, '''At which step to decay the learning rate''')
 
+tf.app.flags.DEFINE_float('lam', 10, '''Frob norm lambda constraint''')
+
+tf.app.flags.DEFINE_string('gpuid', '0', '''gpu id''')
 
 ## The following flags define hyper-parameters modifying the training network
 

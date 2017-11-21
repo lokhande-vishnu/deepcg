@@ -8,7 +8,8 @@ import time
 from cifar10_input import *
 import pandas as pd
 
-
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]= FLAGS.gpuid
 
 class Train(object):
     '''
@@ -99,7 +100,7 @@ class Train(object):
         # If you want to load from a checkpoint
         if FLAGS.is_use_ckpt is True:
             saver.restore(sess, FLAGS.ckpt_path)
-            print 'Restored from checkpoint...'
+            print('Restored from checkpoint...')
         else:
             sess.run(init)
 
@@ -111,11 +112,12 @@ class Train(object):
         step_list = []
         train_error_list = []
         val_error_list = []
+        train_loss_list = []
 
-        print 'Start training...'
-        print '----------------------------'
+        print( 'Start training...')
+        print( '----------------------------')
 
-        for step in xrange(FLAGS.train_steps):
+        for step in range(FLAGS.train_steps):
 
             train_batch_data, train_batch_labels = self.generate_augment_train_batch(all_data, all_labels,
                                                                         FLAGS.train_batch_size)
@@ -178,21 +180,19 @@ class Train(object):
                 sec_per_batch = float(duration)
 
                 format_str = ('%s: step %d, loss = %.4f (%.1f examples/sec; %.3f ' 'sec/batch)')
-                print format_str % (datetime.now(), step, train_loss_value, examples_per_sec,
-                                    sec_per_batch)
-                print 'Train top1 error = ', train_error_value
-                print 'Validation top1 error = %.4f' % validation_error_value
-                print 'Validation loss = ', validation_loss_value
-                print '----------------------------'
+                print( format_str % (datetime.now(), step, train_loss_value, examples_per_sec, sec_per_batch))
+                print( 'Train top1 error = ', train_error_value)
+                print( 'Validation top1 error = %.4f' % validation_error_value)
+                print( 'Validation loss = ', validation_loss_value)
+                print( '----------------------------')
 
                 step_list.append(step)
                 train_error_list.append(train_error_value)
+                train_loss_list.append(train_loss_value)
 
-
-
-            if step == FLAGS.decay_step0 or step == FLAGS.decay_step1:
+            if step == FLAGS.decay_step0 or step == FLAGS.decay_step1 or step == FLAGS.decay_step2 or step == FLAGS.decay_step3 or step == FLAGS.decay_step4 or step == FLAGS.decay_step5 or step == FLAGS.decay_step6:
                 FLAGS.init_lr = 0.1 * FLAGS.init_lr
-                print 'Learning rate decayed to ', FLAGS.init_lr
+                print( 'Learning rate decayed to ', FLAGS.init_lr)
 
             # Save checkpoints every 10000 steps
             if step % 10000 == 0 or (step + 1) == FLAGS.train_steps:
@@ -200,7 +200,7 @@ class Train(object):
                 saver.save(sess, checkpoint_path, global_step=step)
 
                 df = pd.DataFrame(data={'step':step_list, 'train_error':train_error_list,
-                                'validation_error': val_error_list})
+                                'validation_error': val_error_list, 'train_loss':train_loss_list})
                 df.to_csv(train_dir + FLAGS.version + '_error.csv')
 
 
@@ -215,7 +215,7 @@ class Train(object):
         num_test_images = len(test_image_array)
         num_batches = num_test_images // FLAGS.test_batch_size
         remain_images = num_test_images % FLAGS.test_batch_size
-        print '%i test batches in total...' %num_batches
+        print( '%i test batches in total...' %num_batches)
 
         # Create the test image and labels placeholders
         self.test_image_placeholder = tf.placeholder(dtype=tf.float32, shape=[FLAGS.test_batch_size,
@@ -230,13 +230,13 @@ class Train(object):
         sess = tf.Session()
 
         saver.restore(sess, FLAGS.test_ckpt_path)
-        print 'Model restored from ', FLAGS.test_ckpt_path
+        print( 'Model restored from ', FLAGS.test_ckpt_path)
 
         prediction_array = np.array([]).reshape(-1, NUM_CLASS)
         # Test by batches
         for step in range(num_batches):
             if step % 10 == 0:
-                print '%i batches finished!' %step
+                print( '%i batches finished!' %step)
             offset = step * FLAGS.test_batch_size
             test_image_batch = test_image_array[offset:offset+FLAGS.test_batch_size, ...]
 
@@ -307,6 +307,11 @@ class Train(object):
         vali_label_batch = vali_label[offset:offset+vali_batch_size]
         return vali_data_batch, vali_label_batch
 
+    def tf_frobenius_norm(self, M):
+        return tf.reduce_sum(M ** 2) ** 0.5
+
+    def Cgd_Fn(self, grad, wt):
+        return (wt + (FLAGS.lam)*grad / (self.tf_frobenius_norm(grad) + 0.0000000001))
 
     def generate_augment_train_batch(self, train_data, train_labels, train_batch_size):
         '''
@@ -347,8 +352,17 @@ class Train(object):
         tf.summary.scalar('train_top1_error_avg', ema.average(top1_error))
         tf.summary.scalar('train_loss_avg', ema.average(total_loss))
 
-        opt = tf.train.MomentumOptimizer(learning_rate=self.lr_placeholder, momentum=0.9)
-        train_op = opt.minimize(total_loss, global_step=global_step)
+        #opt = tf.train.MomentumOptimizer(learning_rate=self.lr_placeholder, momentum=0.9)
+        #train_op = opt.minimize(total_loss, global_step=global_step)
+
+        opt = tf.train.GradientDescentOptimizer(learning_rate = self.lr_placeholder)
+        grads_and_vars = opt.compute_gradients(total_loss)
+        gv_cgd_fn = [(self.Cgd_Fn(gv[0], gv[1]), gv[1]) for gv in grads_and_vars]
+        train_op = opt.apply_gradients(gv_cgd_fn, global_step=global_step)
+        g0_cgd_fn = grads_and_vars[0][0]
+        w0_cgd_fn = grads_and_vars[0][1]
+        s0_cgd_fn = self.Cgd_Fn(g0_cgd_fn, w0_cgd_fn)
+        w1_cgd_fn = w0_cgd_fn - self.lr_placeholder * s0_cgd_fn
         return train_op, train_ema_op
 
 
