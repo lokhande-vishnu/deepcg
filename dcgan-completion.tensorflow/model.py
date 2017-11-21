@@ -148,7 +148,7 @@ class DCGAN(object):
         norm_nuclear = 4
         norm_fro = 3
         alpha = 0.9
-        lamda = 100000
+        lamda = 1000000
 
         if grad_type == 4: # nuclear norm
             inds = range(gsize)
