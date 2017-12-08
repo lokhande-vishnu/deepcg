@@ -31,11 +31,12 @@ function [layer, train_values] = train(X, Y, layer, param)
       % Forward
       layer = forward( layer, X(ind,:), Y(ind), param.dropout);      
       % TRAINING ERROR
-      train_values(i, 1) = layer{4}.classerr/batchsize;
-      train_values(i, 2) = sum(layer{depth}.objective);
-%       prediction_on_test = forward(layer, X_test, Y_test, 0);
-%       prediction_on_test = prediction_on_test{4}.classerr *100;
-%       train_values(i, 3) = prediction_on_test;
+      if param.mission <= 2
+          train_values(i, 1) = layer{4}.classerr/batchsize;
+          train_values(i, 2) = sum(layer{depth}.objective);          
+          prediction_on_test = forward(layer, param.X_test, param.Y_test, 0);
+          train_values(i, 3) = prediction_on_test{4}.classerr *100;
+      end
       % Backward
       layer = backward( layer, X(ind,:), Y(ind) );
 
@@ -48,10 +49,12 @@ function [layer, train_values] = train(X, Y, layer, param)
               layer{j}.theta = layer{j}.theta - eta * layer{j}.gradientTheta ./ gamma{j}.out';
             end
           case param.SGD % sgd
+            gamma = path_scale( layer, depth );
             for j=2:depth
               layer{j}.W = layer{j}.W - eta * layer{j}.gradient;
               layer{j}.theta = layer{j}.theta - eta * layer{j}.gradientTheta;
             end
+            
           case param.CONSTRAINT_PATH_NORM % cgd - path norm 
             for j=2:depth 
               gamma = path_scale( layer, depth ); 
@@ -116,7 +119,7 @@ function [layer, train_values] = train(X, Y, layer, param)
               end
           case param.MIXED_NUCLEAR_FRO % cgd - mixed - nuclear norm x fro
               % calculate st from gradient              
-              frac_rank = 0.7;
+              frac_rank = 0.7;clear 
               for j = [2 4] % nuclear norm
                   lambda_n = min(size(layer{j}.gradient))*frac_rank;
                   wb_j = [layer{j}.gradient; layer{j}.gradientTheta]; % (m + 1) x n
@@ -133,6 +136,9 @@ function [layer, train_values] = train(X, Y, layer, param)
               b_j = wb_j(end, :);
               layer{j}.W = (1-eta)*layer{j}.W + eta * w_j;
               layer{j}.theta = (1-eta)*layer{j}.theta + eta * b_j;
+      end
+      if param.mission == 3
+        train_values(i, 3) = get_path_norm(layer, gamma);
       end
     end
 end

@@ -4,12 +4,12 @@ clear all, close all, clc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 param = init();
 dataset = param.DS_CIFAR10;
-param.norm = param.CONSTRAINT_PATH_NORM;
+param.norm = 3;
 param.maxIter = 8000;   % the number of updates
 % Tunning parameters
 param.dropout = 0;      % The amount of dropout. zero means no dropout
-param.eta = 0.00001;     % stepsize
-param.lambda = 1000;     % 
+param.eta = 0.1;     % stepsize
+param.lambda = 10^6;     % 
 
 % DATASET
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

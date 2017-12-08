@@ -1,0 +1,16 @@
+1.
+batchsize = 100
+path_sgd = 1
+iterations = 8000
+dropout = 0
+loss_function = 2.16e+3
+test error = 6.68%
+
+2.
+batchsize = 100
+path_sgd = 0
+iterations = 8000
+dropout = 0
+loss_function = 2.3
+test error = 90.2%
+

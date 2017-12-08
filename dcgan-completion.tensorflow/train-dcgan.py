@@ -25,6 +25,9 @@ flags.DEFINE_integer("image_size", 64, "The size of image to use")
 flags.DEFINE_string("dataset", "lfw-aligned-64", "Dataset directory.")
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
 flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
+flags.DEFINE_string("lamda", 1000000, "Frob Norm lambda which is applied on the discriminator")
+flags.DEFINE_string("gpuid", '0', "gpd id")
+
 FLAGS = flags.FLAGS
 
 if not os.path.exists(FLAGS.checkpoint_dir):
@@ -33,9 +36,12 @@ if not os.path.exists(FLAGS.sample_dir):
     os.makedirs(FLAGS.sample_dir)
 
 config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
+#config.gpu_options.allow_growth = True
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]= FLAGS.gpuid
+
+
 with tf.Session(config=config) as sess:
     dcgan = DCGAN(sess, image_size=FLAGS.image_size, batch_size=FLAGS.batch_size,
-                  is_crop=False, checkpoint_dir=FLAGS.checkpoint_dir)
-
+                  is_crop=False, checkpoint_dir=FLAGS.checkpoint_dir, lamda=FLAGS.lamda)
     dcgan.train(FLAGS)

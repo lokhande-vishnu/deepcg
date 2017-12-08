@@ -30,7 +30,7 @@ class DCGAN(object):
                  batch_size=64, sample_size=64, lowres=8,
                  z_dim=100, gf_dim=64, df_dim=64,
                  gfc_dim=1024, dfc_dim=1024, c_dim=3,
-                 checkpoint_dir=None, lam=0.1):
+                 checkpoint_dir=None, lam=0.1, lamda = 1000000):
         """
 
         Args:
@@ -67,6 +67,7 @@ class DCGAN(object):
         self.dfc_dim = dfc_dim
 
         self.lam = lam
+        self.lamda = int(lamda)
 
         self.c_dim = c_dim
 
@@ -82,6 +83,9 @@ class DCGAN(object):
         self.build_model()
 
         self.model_name = "DCGAN.model"
+        self.checkpoint_name = "SAVE_EPOCH"
+
+
 
     def build_model(self):
         self.is_training = tf.placeholder(tf.bool, name='is_training')
@@ -128,7 +132,7 @@ class DCGAN(object):
         self.d_vars = [var for var in t_vars if 'd_' in var.name]
         self.g_vars = [var for var in t_vars if 'g_' in var.name]
 
-        self.saver = tf.train.Saver(max_to_keep=1)
+        self.saver = tf.train.Saver(max_to_keep=0)
 
         # Completion.
         self.mask = tf.placeholder(tf.float32, self.image_shape, name='mask')
@@ -148,7 +152,8 @@ class DCGAN(object):
         norm_nuclear = 4
         norm_fro = 3
         alpha = 0.9
-        lamda = 1000000
+        #lamda = 1000000
+        print("############ lamda: %d" % self.lamda)
 
         if grad_type == 4: # nuclear norm
             inds = range(gsize)
@@ -157,14 +162,14 @@ class DCGAN(object):
             gv_j = [grads_and_vars[k] for k in non_conv_set]
             # conv - nuclear
             update_for_non_j = [
-                (cal_grad_set(gv, alpha, lamda, norm_nuclear), gv[1]) for gv in gv_non_j]
+                (cal_grad_set(gv, alpha, self.lamda, norm_nuclear), gv[1]) for gv in gv_non_j]
             # frobenius_norm
             gv_j_grad = [gv[0] for gv in gv_j]
             gv_j_w = [gv[1] for gv in gv_j]
             sum_fb_norm = tf.reduce_sum(
                 [frobenius_norm(m_grad) for m_grad in gv_j_grad])
             update_for_j = [(get_cgd_with_st(
-                gv[0] / sum_fb_norm, gv[1], alpha, lamda), gv[1]) for gv in gv_j]
+                gv[0] / sum_fb_norm, gv[1], alpha, self.lamda), gv[1]) for gv in gv_j]
             # Batch norm
 
 
@@ -179,10 +184,13 @@ class DCGAN(object):
             sum_fb_norm = tf.reduce_sum(
                 [frobenius_norm(m_grad) for m_grad in gv_j_grad])
             update_for_j = [(get_cgd_with_st(
-                gv[0] / sum_fb_norm, gv[1], alpha, lamda), gv[1]) for gv in grads_and_vars]
+                gv[0] / (sum_fb_norm + 0.000001), gv[1], alpha, self.lamda), gv[1]) for gv in grads_and_vars]
             return update_for_j
 
     def train(self, config):
+        print("Parameters of the model:\n")
+        print("epoch=%s, lamda=%s, dir=%s, gpu=%s" % (config.epoch, config.lamda, config.checkpoint_dir, config.gpuid))
+        
         data = dataset_files(config.dataset)
         np.random.shuffle(data)
         assert(len(data) > 0)
@@ -263,7 +271,7 @@ Initializing a new one.
 
 """)
 
-        for epoch in xrange(config.epoch):
+        for epoch in xrange(config.epoch + 1):
             data = dataset_files(config.dataset)
             batch_idxs = min(len(data), config.train_size) // self.batch_size
 
@@ -308,8 +316,13 @@ Initializing a new one.
                                 './samples/train_{:02d}_{:04d}.png'.format(epoch, idx))
                     print("[Sample] d_loss: {:.8f}, g_loss: {:.8f}".format(d_loss, g_loss))
 
-                if np.mod(counter, 500) == 2:
-                    self.save(config.checkpoint_dir, counter)
+                #if np.mod(counter, 500) == 2:
+                    #self.save(config.checkpoint_dir, counter)
+
+            if np.mod(epoch, 5) == 0:
+                self.save_epoch(config.checkpoint_dir, epoch)
+
+            
 
 
     def complete(self, config):
@@ -523,6 +536,15 @@ Initializing a new one.
                         os.path.join(checkpoint_dir, self.model_name),
                         global_step=step)
 
+    def save_epoch(self, checkpoint_dir, step):
+        if not os.path.exists(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
+
+        self.saver.save(self.sess,
+                        os.path.join(checkpoint_dir, self.checkpoint_name),
+                        global_step=step)
+
+        
     def load(self, checkpoint_dir):
         print(" [*] Reading checkpoints...")
 

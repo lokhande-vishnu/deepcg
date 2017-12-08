@@ -2,9 +2,9 @@ function param = init()
     param.batchsize = 100;
     param.balanced = true;  % If balanced = false then the initial weights are unbalanced. 
                         % See the paper for more details.
-    param.lambda_set = 2:6; % classification
-    param.eta_set = 2:5;
-    param.dropout_set = [0, 0.5];
+    param.lambda_set = 6:8; % classification
+    param.eta_set = 4:6;
+    param.dropout_set = [0];
     
     %%%% CONSTANT %%%% 
     % Dataset
