@@ -191,3 +191,20 @@ def read_validation_data():
     return validation_array, validation_labels
 
 
+def prepare_data_nopadding():
+    '''
+    Read all the train data into numpy array and without adding padding
+    :param padding_size: int. how many layers of zero pads to add on each side?
+    :return: all the train data and corresponding labels
+    '''
+    path_list = []
+    for i in range(1, NUM_TRAIN_BATCH+1):
+        path_list.append(full_data_dir + str(i))
+    data, label = read_in_all_images(path_list, is_random_label=TRAIN_RANDOM_LABEL)
+    
+    #pad_width = ((0, 0), (padding_size, padding_size), (padding_size, padding_size), (0, 0))
+    #data = np.pad(data, pad_width=pad_width, mode='constant', constant_values=0)
+    data = whitening_image(data)
+    
+    return data, label
+
