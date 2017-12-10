@@ -75,7 +75,7 @@ def _read_one_batch(path, is_random_label):
     return data, label
 
 
-def read_in_all_images(address_list, shuffle=True, is_random_label = False):
+def read_in_all_images(address_list, shuffle=False, is_random_label = False):
     """
     This function reads all training or validation data, shuffles them if needed, and returns the
     images and the corresponding labels as numpy arrays

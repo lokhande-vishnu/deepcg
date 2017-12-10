@@ -243,36 +243,42 @@ class Train(object):
             layer_image_batch = layer_image_array[offset:offset+FLAGS.test_batch_size, ...]
             layer_label_batch = layer_label_array[offset:offset+FLAGS.test_batch_size]
 
-            batch_prediction_array, pref_layer_ = sess.run([pref_layer, predictions],
+            batch_prediction_array, pref_layer_ = sess.run([predictions, pref_layer],
                                         feed_dict={self.layer_image_placeholder: layer_image_batch})
-
-            print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', len(pref_layer_), len(pref_layer_[0]))
+            #print('aa', len(pref_layer_), len(pref_layer_[0]))
             prediction_array = np.concatenate((prediction_array, batch_prediction_array))
-            pref_layer_array.append(pref_layer_)
+            pref_layer_array.extend(pref_layer_)
 
         # If test_batch_size is not a divisor of num_test_images
         if remain_images != 0:
             self.layer_image_placeholder = tf.placeholder(dtype=tf.float32, shape=[remain_images,
                                                         IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH])
             # Build the test graph
-            logits,_ = inference(self.layer_image_placeholder, FLAGS.num_residual_blocks, reuse=False)
+            logits,pref_layer = inference(self.layer_image_placeholder, FLAGS.num_residual_blocks, reuse=False)
             predictions = tf.nn.softmax(logits)
 
             layer_image_batch = layer_image_array[-remain_images:, ...]
 
-            batch_prediction_array, pref_layer_ = sess.run([pref_layer, predictions], feed_dict={
+            batch_prediction_array, pref_layer_ = sess.run([predictions, pref_layer], feed_dict={
                 self.layer_image_placeholder: layer_image_batch})
 
             prediction_array = np.concatenate((prediction_array, batch_prediction_array))
-            pref_layer_array.append(pref_layer_)
+            pref_layer_array.extend(pref_layer_)
 
-        checkpoint_path = os.path.join(train_dir, 'layer_model.ckpt')
-        saver.save(sess, checkpoint_path, global_step=1)
-
-        df = pd.DataFrame(data={'input':layer_image_array, 'label':layer_label_array,
-                                'layer': pref_layer_array})
-        df.to_csv(train_dir + FLAGS.version + '_layer.csv')
-
+        #checkpoint_path = os.path.join(train_dir, 'layer_model.ckpt')
+        #saver.save(sess, checkpoint_path, global_step=1)
+        l = len(layer_label_array)
+        layer_label_array = np.array(layer_label_array).reshape((l, 1))
+        print(len(layer_image_array), len(layer_image_array[0]))
+        print(len(layer_label_array), len(layer_label_array[0]))
+        print(len(pref_layer_array), len(pref_layer_array[0]))
+        #df1 = pd.DataFrame(data=layer_image_array)
+        #df1.to_csv(train_dir + FLAGS.version + '_input.csv')
+        df2 = pd.DataFrame(data=pref_layer_array)
+        df2.to_csv('prelayer_' + FLAGS.version + '.csv')
+        df3 = pd.DataFrame(data=layer_label_array)
+        df3.to_csv('label_' + FLAGS.version + '.csv')
+        
         return prediction_array
 
                 

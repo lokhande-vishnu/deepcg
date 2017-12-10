@@ -11,7 +11,7 @@ FLAGS = tf.app.flags.FLAGS
 
 ## The following flags are related to save paths, tensorboard outputs and screen outputs
 
-tf.app.flags.DEFINE_string('version', 'test_110', '''A version number defining the directory to save
+tf.app.flags.DEFINE_string('version', 'preflayer', '''A version number defining the directory to save
 logs and checkpoints''')
 tf.app.flags.DEFINE_integer('report_freq', 391, '''Steps takes to output errors on the screen
 and write summaries''')
@@ -69,4 +69,4 @@ tf.app.flags.DEFINE_string('test_ckpt_path', test_ckpt_dir, '''Checkpoint
 directory to restore''')
 
 
-train_dir = 'logs_' + FLAGS.version + '/'
+train_dir = 'dirlayer_' + FLAGS.version + '/'
