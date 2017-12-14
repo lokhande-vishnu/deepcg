@@ -1,9 +1,6 @@
 # Coder: Wenxin Xu
 # Github: https://github.com/wenxinxu/resnet_in_tensorflow
 # ==============================================================================
-### params changed from master ###
-# flags.padding 2 -> 0
-# removed random_crop_and_flip while training
 
 import tensorflow as tf
 
