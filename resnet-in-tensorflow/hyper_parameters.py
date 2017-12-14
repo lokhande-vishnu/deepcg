@@ -1,13 +1,14 @@
 # Coder: Wenxin Xu
 # Github: https://github.com/wenxinxu/resnet_in_tensorflow
 # ==============================================================================
+
 import tensorflow as tf
 
 FLAGS = tf.app.flags.FLAGS
 
 ## The following flags are related to save paths, tensorboard outputs and screen outputs
 
-tf.app.flags.DEFINE_string('version', 'test_110', '''A version number defining the directory to save
+tf.app.flags.DEFINE_string('version', 'preflayer', '''A version number defining the directory to save
 logs and checkpoints''')
 tf.app.flags.DEFINE_integer('report_freq', 391, '''Steps takes to output errors on the screen
 and write summaries''')
@@ -16,7 +17,7 @@ moving average shown on tensorboard''')
 
 
 ## The following flags define hyper-parameters regards training
-
+# train_steps initially 80000
 tf.app.flags.DEFINE_integer('train_steps', 80000, '''Total steps that you want to train''')
 tf.app.flags.DEFINE_boolean('is_full_validation', False, '''Validation w/ full validation set or
 a random batch''')
@@ -48,7 +49,7 @@ tf.app.flags.DEFINE_float('weight_decay', 0.0002, '''scale for l2 regularization
 
 ## The following flags are related to data-augmentation
 
-tf.app.flags.DEFINE_integer('padding_size', 2, '''In data augmentation, layers of zero padding on
+tf.app.flags.DEFINE_integer('padding_size', 0, '''In data augmentation, layers of zero padding on
 each side of the image''')
 
 
@@ -59,8 +60,10 @@ directory to restore''')
 tf.app.flags.DEFINE_boolean('is_use_ckpt', False, '''Whether to load a checkpoint and continue
 training''')
 
-tf.app.flags.DEFINE_string('test_ckpt_path', 'model_110.ckpt-79999', '''Checkpoint
+
+test_ckpt_dir = 'logs_lr10m4_lam10e2_cifar10_resnet32_decayevery10k/model.ckpt-79999'
+tf.app.flags.DEFINE_string('test_ckpt_path', test_ckpt_dir, '''Checkpoint
 directory to restore''')
 
 
-train_dir = 'logs_' + FLAGS.version + '/'
+train_dir = 'dirlayer_' + FLAGS.version + '/'
