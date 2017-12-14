@@ -59,8 +59,10 @@ directory to restore''')
 tf.app.flags.DEFINE_boolean('is_use_ckpt', False, '''Whether to load a checkpoint and continue
 training''')
 
-tf.app.flags.DEFINE_string('test_ckpt_path', 'model_110.ckpt-79999', '''Checkpoint
+
+test_ckpt_dir = 'logs_lr10m4_lam10e2_cifar100_resnet32_decayevery10k/model.ckpt-79999'
+tf.app.flags.DEFINE_string('test_ckpt_path', test_ckpt_dir, '''Checkpoint
 directory to restore''')
 
 
-train_dir = 'logs_' + FLAGS.version + '/'
+train_dir = 'dirlayer_' + FLAGS.version + '/'

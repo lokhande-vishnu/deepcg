@@ -18,7 +18,7 @@ DATA_URL = 'http://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
 IMG_WIDTH = 32
 IMG_HEIGHT = 32
 IMG_DEPTH = 3
-NUM_CLASS = 10
+NUM_CLASS = 100
 
 TRAIN_RANDOM_LABEL = False # Want to use random label for train data?
 VALI_RANDOM_LABEL = False # Want to use random label for validation?
@@ -74,7 +74,7 @@ def _read_one_batch(path, is_random_label):
     return data, label
 
 
-def read_in_all_images(address_list, shuffle=True, is_random_label = False):
+def read_in_all_images(address_list, shuffle=False, is_random_label = False):
     """
     This function reads all training or validation data, shuffles them if needed, and returns the
     images and the corresponding labels as numpy arrays
@@ -110,6 +110,20 @@ def read_in_all_images(address_list, shuffle=True, is_random_label = False):
     data = data.astype(np.float32)
     return data, label
 
+def prepare_data_nopadding():
+    '''
+    Read all the train data into numpy array and without adding padding
+    :param padding_size: int. how many layers of zero pads to add on each side?
+    :return: all the train data and corresponding labels
+    '''
+    path_list = []
+    for i in range(1, NUM_TRAIN_BATCH+1):
+        path_list.append(full_data_dir)
+    data, label = read_in_all_images(path_list, is_random_label=TRAIN_RANDOM_LABEL)
+    #pad_width = ((0, 0), (padding_size, padding_size), (padding_size, padding_size), (0, 0))
+    #data = np.pad(data, pad_width=pad_width, mode='constant', constant_values=0)
+    data = whitening_image(data)
+    return data, label
 
 def horizontal_flip(image, axis):
     '''
@@ -123,7 +137,6 @@ def horizontal_flip(image, axis):
         image = cv2.flip(image, axis)
 
     return image
-
 
 def whitening_image(image_np):
     '''

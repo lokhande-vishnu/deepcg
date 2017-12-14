@@ -52,8 +52,8 @@ class Train(object):
         # Logits of training data and valiation data come from the same graph. The inference of
         # validation data share all the weights with train data. This is implemented by passing
         # reuse=True to the variable scopes of train graph
-        logits = inference(self.image_placeholder, FLAGS.num_residual_blocks, reuse=False)
-        vali_logits = inference(self.vali_image_placeholder, FLAGS.num_residual_blocks, reuse=True)
+        logits,_ = inference(self.image_placeholder, FLAGS.num_residual_blocks, reuse=False)
+        vali_logits,_ = inference(self.vali_image_placeholder, FLAGS.num_residual_blocks, reuse=True)
 
         # The following codes calculate the train loss, which is consist of the
         # softmax cross entropy and the relularization loss
@@ -203,7 +203,84 @@ class Train(object):
                                 'validation_error': val_error_list, 'train_loss':train_loss_list})
                 df.to_csv(train_dir + FLAGS.version + '_error.csv')
 
+    def getLayer(self, layer_image_array, layer_label_array):
+        '''
+        This function is used to evaluate the test data. Please finish pre-precessing in advance
 
+        :param layer_image_array: 4D numpy array with shape [num_test_images, img_height, img_width,
+        img_depth]
+        :return: the softmax probability with shape [num_test_images, num_labels]
+        '''
+        num_layer_images = len(layer_image_array)
+        num_batches = num_layer_images // FLAGS.test_batch_size
+        remain_images = num_layer_images % FLAGS.test_batch_size
+        print( '%i test batches in total...' %num_batches)
+
+        # Create the layer image and labels placeholders
+        self.layer_image_placeholder = tf.placeholder(dtype=tf.float32, shape=[FLAGS.test_batch_size,
+                                                        IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH])
+        self.layer_label_placeholder = tf.placeholder(dtype=tf.int32, shape=[FLAGS.test_batch_size])
+
+        # Build the layer graph
+        logits, pref_layer = inference(self.layer_image_placeholder, FLAGS.num_residual_blocks, reuse=False)
+        predictions = tf.nn.softmax(logits)
+
+        # Initialize a new session and restore a checkpoint
+        saver = tf.train.Saver(tf.all_variables())
+        sess = tf.Session()
+
+        saver.restore(sess, FLAGS.test_ckpt_path)
+        print( 'Model restored from ', FLAGS.test_ckpt_path)
+
+        pref_layer_array = []
+        prediction_array = np.array([]).reshape(-1, NUM_CLASS)
+        # Test by batches
+        for step in range(num_batches):
+            if step % 10 == 0:
+                print( '%i batches finished!' %step)
+            offset = step * FLAGS.test_batch_size
+            layer_image_batch = layer_image_array[offset:offset+FLAGS.test_batch_size, ...]
+            layer_label_batch = layer_label_array[offset:offset+FLAGS.test_batch_size]
+
+            batch_prediction_array, pref_layer_ = sess.run([predictions, pref_layer],
+                                        feed_dict={self.layer_image_placeholder: layer_image_batch})
+            #print('aa', len(pref_layer_), len(pref_layer_[0]))
+            prediction_array = np.concatenate((prediction_array, batch_prediction_array))
+            pref_layer_array.extend(pref_layer_)
+
+        # If test_batch_size is not a divisor of num_test_images
+        if remain_images != 0:
+            self.layer_image_placeholder = tf.placeholder(dtype=tf.float32, shape=[remain_images,
+                                                        IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH])
+            # Build the test graph
+            logits,pref_layer = inference(self.layer_image_placeholder, FLAGS.num_residual_blocks, reuse=False)
+            predictions = tf.nn.softmax(logits)
+
+            layer_image_batch = layer_image_array[-remain_images:, ...]
+
+            batch_prediction_array, pref_layer_ = sess.run([predictions, pref_layer], feed_dict={
+                self.layer_image_placeholder: layer_image_batch})
+
+            prediction_array = np.concatenate((prediction_array, batch_prediction_array))
+            pref_layer_array.extend(pref_layer_)
+
+        #checkpoint_path = os.path.join(train_dir, 'layer_model.ckpt')
+        #saver.save(sess, checkpoint_path, global_step=1)
+        l = len(layer_label_array)
+        layer_label_array = np.array(layer_label_array).reshape((l, 1))
+        print(len(layer_image_array), len(layer_image_array[0]))
+        print(len(layer_label_array), len(layer_label_array[0]))
+        print(len(pref_layer_array), len(pref_layer_array[0]))
+        #df1 = pd.DataFrame(data=layer_image_array)
+        #df1.to_csv(train_dir + FLAGS.version + '_input.csv')
+        df2 = pd.DataFrame(data=pref_layer_array)
+        df2.to_csv('prelayer_' + FLAGS.version + '.csv')
+        df3 = pd.DataFrame(data=layer_label_array)
+        df3.to_csv('label_' + FLAGS.version + '.csv')
+        
+        return prediction_array
+
+                
     def test(self, test_image_array):
         '''
         This function is used to evaluate the test data. Please finish pre-precessing in advance
@@ -222,7 +299,7 @@ class Train(object):
                                                         IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH])
 
         # Build the test graph
-        logits = inference(self.test_image_placeholder, FLAGS.num_residual_blocks, reuse=False)
+        logits,_ = inference(self.test_image_placeholder, FLAGS.num_residual_blocks, reuse=False)
         predictions = tf.nn.softmax(logits)
 
         # Initialize a new session and restore a checkpoint
@@ -250,7 +327,7 @@ class Train(object):
             self.test_image_placeholder = tf.placeholder(dtype=tf.float32, shape=[remain_images,
                                                         IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH])
             # Build the test graph
-            logits = inference(self.test_image_placeholder, FLAGS.num_residual_blocks, reuse=True)
+            logits,_ = inference(self.test_image_placeholder, FLAGS.num_residual_blocks, reuse=True)
             predictions = tf.nn.softmax(logits)
 
             test_image_batch = test_image_array[-remain_images:, ...]
@@ -435,8 +512,11 @@ maybe_download_and_extract()
 # Initialize the Train object
 train = Train()
 # Start the training session
-train.train()
+#train.train()
 
+# Get the pre-final layer from a checkpoint
+test_data, test_labels =  prepare_data_nopadding()
+train.getLayer(test_data, test_labels)
 
 
 

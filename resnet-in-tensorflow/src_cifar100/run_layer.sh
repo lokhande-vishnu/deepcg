@@ -1,0 +1,17 @@
+echo "logs_lr10m4_lam10e2_cifar100_resnet32_decayevery10k"
+python cifar100_train.py --gpuid=3 --version=lr10m4_lam10e2_cifar100_resnet32_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e2_cifar100_resnet32_decayevery10k/model.ckpt-79999
+
+echo "logs_lr10m4_lam10e2_cifar100_resnet56_decayevery10k"
+python cifar100_train.py --gpuid=3 --version=lr10m4_lam10e2_cifar100_resnet56_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e2_cifar100_resnet56_decayevery10k/model.ckpt-79999
+
+echo "logs_lr10m4_lam10e2_cifar100_resnet110_decayevery10k"
+python cifar100_train.py --gpuid=3 --version=lr10m4_lam10e2_cifar100_resnet110_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e2_cifar100_resnet110_decayevery10k/model.ckpt-79999
+
+echo "logs_lr10m4_lam10e3_cifar100_resnet32_decayevery10k"
+python cifar100_train.py --gpuid=3 --version=lr10m4_lam10e3_cifar100_resnet32_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e3_cifar100_resnet32_decayevery10k/model.ckpt-79999
+
+echo "logs_lr10m4_lam10e3_cifar100_resnet56_decayevery10k"
+python cifar100_train.py --gpuid=3 --version=lr10m4_lam10e3_cifar100_resnet56_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e3_cifar100_resnet56_decayevery10k/model.ckpt-79999
+
+echo "logs_lr10m4_lam10e3_cifar100_resnet110_decayevery10k"
+python cifar100_train.py --gpuid=3 --version=lr10m4_lam10e3_cifar100_resnet110_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e3_cifar100_resnet110_decayevery10k/model.ckpt-79999

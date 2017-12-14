@@ -1,17 +1,17 @@
 echo "logs_lr10m4_lam10e2_cifar10_resnet32_decayevery10k"
-python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e2_cifar10_resnet32_decayevery10k --test_ckpt_dir=logs_lr10m4_lam10e2_cifar10_resnet32_decayevery10k/model.ckpt-79999
+python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e2_cifar10_resnet32_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e2_cifar10_resnet32_decayevery10k/model.ckpt-79999
 
 echo "logs_lr10m4_lam10e2_cifar10_resnet56_decayevery10k"
-python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e2_cifar10_resnet56_decayevery10k --test_ckpt_dir=logs_lr10m4_lam10e2_cifar10_resnet56_decayevery10k/model.ckpt-79999
+python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e2_cifar10_resnet56_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e2_cifar10_resnet56_decayevery10k/model.ckpt-79999
 
 echo "logs_lr10m4_lam10e2_cifar10_resnet110_decayevery10k"
-python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e2_cifar10_resnet110_decayevery10k --test_ckpt_dir=logs_lr10m4_lam10e2_cifar10_resnet110_decayevery10k/model.ckpt-79999
+python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e2_cifar10_resnet110_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e2_cifar10_resnet110_decayevery10k/model.ckpt-79999
 
 echo "logs_lr10m4_lam10e3_cifar10_resnet32_decayevery10k"
-python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e3_cifar10_resnet32_decayevery10k --test_ckpt_dir=logs_lr10m4_lam10e3_cifar10_resnet32_decayevery10k/model.ckpt-79999
+python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e3_cifar10_resnet32_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e3_cifar10_resnet32_decayevery10k/model.ckpt-79999
 
 echo "logs_lr10m4_lam10e3_cifar10_resnet56_decayevery10k"
-python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e3_cifar10_resnet56_decayevery10k --test_ckpt_dir=logs_lr10m4_lam10e3_cifar10_resnet56_decayevery10k/model.ckpt-79999
+python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e3_cifar10_resnet56_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e3_cifar10_resnet56_decayevery10k/model.ckpt-79999
 
 echo "logs_lr10m4_lam10e3_cifar10_resnet110_decayevery10k"
-python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e3_cifar10_resnet110_decayevery10k --test_ckpt_dir=logs_lr10m4_lam10e3_cifar10_resnet110_decayevery10k/model.ckpt-79999
+python cifar10_train.py --gpuid=3 --version=lr10m4_lam10e3_cifar10_resnet110_decayevery10k --test_ckpt_path=logs_lr10m4_lam10e3_cifar10_resnet110_decayevery10k/model.ckpt-79999

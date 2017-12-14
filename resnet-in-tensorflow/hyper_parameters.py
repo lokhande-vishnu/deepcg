@@ -49,7 +49,7 @@ tf.app.flags.DEFINE_float('weight_decay', 0.0002, '''scale for l2 regularization
 
 ## The following flags are related to data-augmentation
 
-tf.app.flags.DEFINE_integer('padding_size', 0, '''In data augmentation, layers of zero padding on
+tf.app.flags.DEFINE_integer('padding_size', 2, '''In data augmentation, layers of zero padding on
 each side of the image''')
 
 

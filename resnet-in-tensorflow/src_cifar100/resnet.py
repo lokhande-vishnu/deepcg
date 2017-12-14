@@ -204,7 +204,7 @@ def inference(input_tensor_batch, n, reuse):
         output = output_layer(global_pool, 100)
         layers.append(output)
 
-    return layers[-1]
+    return layers[-1], global_pool
 
 
 def test_graph(train_dir='logs'):
@@ -213,7 +213,7 @@ def test_graph(train_dir='logs'):
     :param train_dir:
     '''
     input_tensor = tf.constant(np.ones([128, 32, 32, 3]), dtype=tf.float32)
-    result = inference(input_tensor, 2, reuse=False)
+    result,_ = inference(input_tensor, 2, reuse=False)
     init = tf.initialize_all_variables()
     sess = tf.Session()
     sess.run(init)
