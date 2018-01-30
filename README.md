@@ -1,4 +1,3 @@
 # cvpr_cgd
 
-Resnets implementation present at
-https://github.com/lokhande-vishnu/resnet-in-tensorflow
+Code Base for CVPR project
