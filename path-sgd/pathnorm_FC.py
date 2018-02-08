@@ -28,16 +28,13 @@ class Train(object):
 
     def path_scale(self, gvs, depth):
         gamma = [Gam(None, None)] * depth
-        start = 0
-        end = len(gvs)-2
-        gamma[0] = Gam(tf.ones([1, gvs[start][1].get_shape()[0]], tf.float32), None)
-        gamma[depth-1] = Gam(None, tf.ones([gvs[end][1].get_shape()[1], 1] , tf.float32))
-        for i in range(1, depth-1):
-            print(i, start, depth)
-            gamma[i]._in = tf.matmul(gamma[i-1]._in, tf.abs(tf.square(gvs[start][1]))) + tf.abs(tf.square(gvs[start+1][1]))
-            gamma[depth-i-1]._out = tf.matmul(tf.abs(tf.square(gvs[end][1])), gamma[depth-i]._out)
-            end -= 2
-            start += 2
+        gamma[0] = Gam(tf.ones([1, gvs[0][1].get_shape()[0]], tf.float32), None)
+        gamma[depth-1] = Gam(None, tf.ones([gvs[len(gvs)-2][1].get_shape()[1], 1] , tf.float32))
+        for i in range(1, depth):
+            gamma[i]._in = tf.matmul(gamma[i-1]._in, tf.abs(tf.square(gvs[(i-1)*2][1]))) + tf.abs(tf.square(gvs[(i-1)*2+1][1]))
+            j = depth-i-1
+            gamma[j]._out = tf.matmul(tf.abs(tf.square(gvs[2*j][1])), gamma[j+1]._out)
+            print(i, j, depth)
         return gamma            
         
     def capGrads(self, grads_and_vars, name = 'CONSTRAINT_PATH_NORM'):
@@ -47,11 +44,15 @@ class Train(object):
         elif name == 'CONSTRAINT_PATH_NORM':
             depth = len(self.FLAGS_hlayers)+2
             gamma = self.path_scale(grads_and_vars, depth)
+            capped_grads_and_vars = []
             for j in range(1, depth):
+
+
                 gamma_j = tf.matmul(gamma[j-1]._in, gamma[j]._out, True, True)
                 bias_j = tf.transpose(gamma[j]._out)
                 wb_j = tf.concat([gamma_j, bias_j], 0)
 
+                '''
                 gamma_j_root = tf.sqrt(wb_j)
                 gamma_j_root_dezero = tf.cond(tf.equal(tf.reduce_sum(gamma_j_root), 0), lambda: tf.add(gamma_j_root, 1.0), lambda: gamma_j_root) #
 
@@ -73,16 +74,17 @@ class Train(object):
                 
                 lambda_j = self.FLAGS_lambda - temp_bias_path_norm
 
-                s_j = - tf.sqrt(lambda_j)* c
+                s_j = tf.multiply(-tf.sqrt(lambda_j), c)
 
                 nrows, ncols = s_j.get_shape().as_list()
                 w_j = tf.slice(s_j, [0, 0], [nrows-1, ncols])
                 b_j = tf.slice(s_j, [nrows-1, 0], [1, ncols])
    
+                '''
                 # Updating the weights and biases
                 grads_and_vars[(j-1)*2] = list(grads_and_vars[(j-1)*2])
                 grads_and_vars[(j-1)*2+1] = list(grads_and_vars[(j-1)*2+1])
-                grads_and_vars[(j-1)*2][1] = w_j
+                grads_and_vars[(j-1)*2][1] = gamma_j
                 '''
                 grads_and_vars[(j-1)*2][1] = (1-self.FLAGS_eta)*grads_and_vars[(j-1)*2][1]# + self.FLAGS_eta*w_j
                 grads_and_vars[(j-1)*2+1][1] = (1-self.FLAGS_eta)*grads_and_vars[(j-1)*2+1][1]#+ self.FLAGS_eta*b_j
@@ -93,8 +95,7 @@ class Train(object):
                 grads_and_vars[(j-1)*2] = tuple(grads_and_vars[(j-1)*2])
                 grads_and_vars[(j-1)*2+1] = tuple(grads_and_vars[(j-1)*2+1])
 
-            return grads_and_vars, gamma_j_root_dezero
-            
+            return grads_and_vars, gamma[2]._out
                 
 
     def prepareTrainData(self):
@@ -120,7 +121,7 @@ class Train(object):
         For eg., grads_and_vars = [(g_Wh1, Wh1), (g_bh1, bh1), (g_Wh2, Wh2), (g_bh2, bh2)]
         '''
         grads_and_vars = opt.compute_gradients(loss)
-        capped_grads_and_vars, g = self.capGrads(grads_and_vars)
+        capped_grads_and_vars, gamma = self.capGrads(grads_and_vars)
         optimizer = opt.apply_gradients(capped_grads_and_vars)
 
         correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(self.labels_placeholder, 1))
@@ -138,8 +139,9 @@ class Train(object):
             ind = np.random.randint(len(train_data), size = self.FLAGS_batchsize)
             data_batch, labels_batch = train_data[ind, :], train_labels[ind, :]
             feed_dict = {self.image_placeholder: data_batch, self.labels_placeholder: labels_batch}
-            _, train_loss, train_acc, c, d = sess.run([optimizer, loss, accuracy, grads_and_vars, capped_grads_and_vars], feed_dict)
-            print(train_loss, train_acc, c, d)
+            _, train_loss, train_acc, c, g = sess.run([optimizer, loss, accuracy, grads_and_vars, gamma], feed_dict)
+            #print(train_loss, train_acc, c)
+            print(g)
             
         
 
