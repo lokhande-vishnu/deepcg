@@ -44,7 +44,7 @@ class Train(object):
         elif name == 'CONSTRAINT_PATH_NORM':
             depth = len(self.FLAGS_hlayers)+2
             gamma = self.path_scale(grads_and_vars, depth)
-            capped_grads_and_vars = []
+            capped_grads_and_vars = [None]*len(grads_and_vars)
             for j in range(1, depth):
 
 
@@ -82,20 +82,24 @@ class Train(object):
    
                 '''
                 # Updating the weights and biases
+                capped_grads_and_vars[(j-1)*2] = (grads_and_vars[(j-1)*2][0], grads_and_vars[(j-1)*2][1])
+                capped_grads_and_vars[(j-1)*2+1] = (grads_and_vars[(j-1)*2+1][0], grads_and_vars[(j-1)*2+1][1])
+                '''
                 grads_and_vars[(j-1)*2] = list(grads_and_vars[(j-1)*2])
                 grads_and_vars[(j-1)*2+1] = list(grads_and_vars[(j-1)*2+1])
                 grads_and_vars[(j-1)*2][1] = gamma_j
-                '''
+
                 grads_and_vars[(j-1)*2][1] = (1-self.FLAGS_eta)*grads_and_vars[(j-1)*2][1]# + self.FLAGS_eta*w_j
                 grads_and_vars[(j-1)*2+1][1] = (1-self.FLAGS_eta)*grads_and_vars[(j-1)*2+1][1]#+ self.FLAGS_eta*b_j
                 weight_zeros = tf.cond(tf.equal(tf.reduce_sum(grads_and_vars[(j-1)*2][1]), 0), lambda: 10.0**(-7), lambda: 0.0)
                 grads_and_vars[(j-1)*2][1] = grads_and_vars[(j-1)*2][1] # #  weight_zeros
 
-                '''
+
                 grads_and_vars[(j-1)*2] = tuple(grads_and_vars[(j-1)*2])
                 grads_and_vars[(j-1)*2+1] = tuple(grads_and_vars[(j-1)*2+1])
-
-            return grads_and_vars, gamma[2]._out
+                '''
+                
+            return capped_grads_and_vars, gamma
                 
 
     def prepareTrainData(self):
@@ -141,7 +145,7 @@ class Train(object):
             feed_dict = {self.image_placeholder: data_batch, self.labels_placeholder: labels_batch}
             _, train_loss, train_acc, c, g = sess.run([optimizer, loss, accuracy, grads_and_vars, gamma], feed_dict)
             #print(train_loss, train_acc, c)
-            print(g)
+            print(len(g))
             
         
 
