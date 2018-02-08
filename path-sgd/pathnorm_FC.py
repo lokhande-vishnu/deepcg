@@ -5,6 +5,9 @@ import numpy as np
 from tensorflow.examples.tutorials.mnist import input_data
 from NeuralNet import *
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]= '3'
+
 class Gam(object):
     def __init__(self, _in, _out):
         self._in = _in
@@ -18,6 +21,8 @@ class Train(object):
         self.FLAGS_lr = 0.05
         self.FLAGS_steps = 1
         self.FLAGS_batchsize = 10000
+        self.FLAGS_lambda = 10.0**6
+        self.FLAGS_eta = 0.1
         self.image_placeholder = tf.placeholder(dtype=tf.float32,shape=[None, 784])
         self.labels_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, self.FLAGS_noutputs])
 
@@ -29,9 +34,7 @@ class Train(object):
         gamma[depth-1] = Gam(None, tf.ones([gvs[end][1].get_shape()[1], 1] , tf.float32))
         for i in range(1, depth-1):
             print(i, start, depth)
-            a = tf.matmul(gamma[i-1]._in, tf.abs(tf.square(gvs[start][1])))
-            b = tf.abs(tf.square(gvs[start+1][1]))
-            gamma[i]._in = a + b
+            gamma[i]._in = tf.matmul(gamma[i-1]._in, tf.abs(tf.square(gvs[start][1]))) + tf.abs(tf.square(gvs[start+1][1]))
             gamma[depth-i-1]._out = tf.matmul(tf.abs(tf.square(gvs[end][1])), gamma[depth-i]._out)
             end -= 2
             start += 2
@@ -50,8 +53,47 @@ class Train(object):
                 wb_j = tf.concat([gamma_j, bias_j], 0)
 
                 gamma_j_root = tf.sqrt(wb_j)
-               
-            return grads_and_vars, gamma
+                gamma_j_root_dezero = tf.cond(tf.equal(tf.reduce_sum(gamma_j_root), 0), lambda: tf.add(gamma_j_root, 1.0), lambda: gamma_j_root) #
+
+                gradient = grads_and_vars[(j-1)*2][0]
+                gradientTheta = grads_and_vars[(j-1)*2+1][0]
+                gradientTheta = tf.reshape(gradientTheta, [1, gradientTheta.get_shape().as_list()[-1]])
+                wb_grad = tf.concat([gradient, gradientTheta], axis = 0)
+
+                norm_grad_j = tf.norm(wb_grad)
+                normed_grad = wb_grad / norm_grad_j
+                c = tf.div(normed_grad, gamma_j_root_dezero) # Maybe gamma = 0
+
+                # get the path norm components from the biases
+                temp_bias_path_norm = 0.0
+                for k_j in range(j+1, depth):
+                    bias_k_j = grads_and_vars[(k_j-1)*2+1][1]
+                    bias_k_j = tf.reshape(bias_k_j, [1, bias_k_j.get_shape().as_list()[-1]])
+                    temp_bias_path_norm = temp_bias_path_norm + tf.matmul(tf.square(bias_k_j), gamma[k_j]._out)
+                
+                lambda_j = self.FLAGS_lambda - temp_bias_path_norm
+
+                s_j = - tf.sqrt(lambda_j)* c
+
+                nrows, ncols = s_j.get_shape().as_list()
+                w_j = tf.slice(s_j, [0, 0], [nrows-1, ncols])
+                b_j = tf.slice(s_j, [nrows-1, 0], [1, ncols])
+   
+                # Updating the weights and biases
+                grads_and_vars[(j-1)*2] = list(grads_and_vars[(j-1)*2])
+                grads_and_vars[(j-1)*2+1] = list(grads_and_vars[(j-1)*2+1])
+                grads_and_vars[(j-1)*2][1] = w_j
+                '''
+                grads_and_vars[(j-1)*2][1] = (1-self.FLAGS_eta)*grads_and_vars[(j-1)*2][1]# + self.FLAGS_eta*w_j
+                grads_and_vars[(j-1)*2+1][1] = (1-self.FLAGS_eta)*grads_and_vars[(j-1)*2+1][1]#+ self.FLAGS_eta*b_j
+                weight_zeros = tf.cond(tf.equal(tf.reduce_sum(grads_and_vars[(j-1)*2][1]), 0), lambda: 10.0**(-7), lambda: 0.0)
+                grads_and_vars[(j-1)*2][1] = grads_and_vars[(j-1)*2][1] # #  weight_zeros
+
+                '''
+                grads_and_vars[(j-1)*2] = tuple(grads_and_vars[(j-1)*2])
+                grads_and_vars[(j-1)*2+1] = tuple(grads_and_vars[(j-1)*2+1])
+
+            return grads_and_vars, gamma_j_root_dezero
             
                 
 
@@ -96,8 +138,9 @@ class Train(object):
             ind = np.random.randint(len(train_data), size = self.FLAGS_batchsize)
             data_batch, labels_batch = train_data[ind, :], train_labels[ind, :]
             feed_dict = {self.image_placeholder: data_batch, self.labels_placeholder: labels_batch}
-            _, train_loss, train_acc = sess.run([optimizer, loss, accuracy], feed_dict)
-            print(train_loss, train_acc)
+            _, train_loss, train_acc, c, d = sess.run([optimizer, loss, accuracy, grads_and_vars, capped_grads_and_vars], feed_dict)
+            print(train_loss, train_acc, c, d)
+            
         
 
 def main():
