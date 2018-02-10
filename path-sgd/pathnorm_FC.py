@@ -6,38 +6,18 @@ from tensorflow.examples.tutorials.mnist import input_data
 from NeuralNet import *
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]= '3'
-'''
-class Gam(object):
-    def __init__(self, _in, _out):
-        self._in = _in
-        self._out = _out
-'''     
+os.environ["CUDA_VISIBLE_DEVICES"]= '2'
 
 class Train(object):
     def __init__(self):
         self.FLAGS_hlayers = [3] # The structure of the network. H(i) is the number of hidden units in the i-th hidden layer
         self.FLAGS_noutputs = 10
-        self.FLAGS_lr = 0.05
-        self.FLAGS_steps = 1
-        self.FLAGS_batchsize = 10000
+        self.FLAGS_steps = 2000
+        self.FLAGS_batchsize = 1000
         self.FLAGS_lambda = 10.0**6
-        self.FLAGS_eta = 0.1
+        self.FLAGS_eta = 0.00001
         self.image_placeholder = tf.placeholder(dtype=tf.float32,shape=[None, 784])
         self.labels_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, self.FLAGS_noutputs])
-
-    '''
-    def path_scale(self, gvs, depth):
-        gamma = [Gam(None, None)] * depth
-        gamma[0] = Gam(tf.ones([1, gvs[0][1].get_shape()[0]], tf.float32), None)
-        gamma[depth-1] = Gam(None, tf.ones([gvs[len(gvs)-2][1].get_shape()[1], 1] , tf.float32))
-        for i in range(1, depth):
-            gamma[i]._in = tf.matmul(gamma[i-1]._in, tf.abs(tf.square(gvs[(i-1)*2][1]))) + tf.abs(tf.square(gvs[(i-1)*2+1][1]))
-            j = depth-i-1
-            gamma[j]._out = tf.matmul(tf.abs(tf.square(gvs[2*j][1])), gamma[j+1]._out)
-            print(i, j, depth)
-        return gamma            
-    '''
 
     def path_scale(self, gvs, depth):
         gamma = []
@@ -53,6 +33,7 @@ class Train(object):
         return gamma            
        
     def capGrads(self, grads_and_vars, name = 'CONSTRAINT_PATH_NORM'):
+        print(name)
         if name == 'SGD':
             return grads_and_vars
 
@@ -94,27 +75,15 @@ class Train(object):
                 nrows, ncols = s_j.get_shape().as_list()
                 w_j = tf.slice(s_j, [0, 0], [nrows-1, ncols])
                 b_j = tf.slice(s_j, [nrows-1, 0], [1, ncols])
-   
+                b_j = tf.reshape(gradientTheta, [b_j.get_shape().as_list()[-1]])
 
                 # Updating the weights and biases
-                capped_grads_and_vars[(j-1)*2] = (grads_and_vars[(j-1)*2][0], (1-self.FLAGS_eta)*grads_and_vars[(j-1)*2][1] + self.FLAGS_eta*w_j)
-                capped_grads_and_vars[(j-1)*2+1] = (grads_and_vars[(j-1)*2+1][0], (1-self.FLAGS_eta)*grads_and_vars[(j-1)*2+1][1] + self.FLAGS_eta*b_j)
-                '''
-                grads_and_vars[(j-1)*2] = list(grads_and_vars[(j-1)*2])
-                grads_and_vars[(j-1)*2+1] = list(grads_and_vars[(j-1)*2+1])
-                grads_and_vars[(j-1)*2][1] = gamma_j
-
-                grads_and_vars[(j-1)*2][1] = (1-self.FLAGS_eta)*grads_and_vars[(j-1)*2][1]# + self.FLAGS_eta*w_j
-                grads_and_vars[(j-1)*2+1][1] = (1-self.FLAGS_eta)*grads_and_vars[(j-1)*2+1][1]#+ self.FLAGS_eta*b_j
-                weight_zeros = tf.cond(tf.equal(tf.reduce_sum(grads_and_vars[(j-1)*2][1]), 0), lambda: 10.0**(-7), lambda: 0.0)
-                grads_and_vars[(j-1)*2][1] = grads_and_vars[(j-1)*2][1] # #  weight_zeros
-
-
-                grads_and_vars[(j-1)*2] = tuple(grads_and_vars[(j-1)*2])
-                grads_and_vars[(j-1)*2+1] = tuple(grads_and_vars[(j-1)*2+1])
-                '''
                 
-            return capped_grads_and_vars, gamma_j
+                capped_grads_and_vars[(j-1)*2] = (grads_and_vars[(j-1)*2][1]-w_j, grads_and_vars[(j-1)*2][1])
+                # Convert row vector to column vector
+                capped_grads_and_vars[(j-1)*2+1] = (grads_and_vars[(j-1)*2+1][1]-b_j, grads_and_vars[(j-1)*2+1][1])
+                
+            return capped_grads_and_vars
                 
 
     def prepareTrainData(self):
@@ -133,20 +102,21 @@ class Train(object):
         # Build the train graph
         logits = inference(self.image_placeholder, self.FLAGS_noutputs, self.FLAGS_hlayers[:], reuse = False)
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_placeholder, logits=logits))
-        opt = tf.train.GradientDescentOptimizer(learning_rate = self.FLAGS_lr)
+        opt = tf.train.GradientDescentOptimizer(learning_rate = self.FLAGS_eta)
 
         '''
         grads_and_vars is a list of tuples. Each tuple is a (gradient, variable) kind
         For eg., grads_and_vars = [(g_Wh1, Wh1), (g_bh1, bh1), (g_Wh2, Wh2), (g_bh2, bh2)]
         '''
         grads_and_vars = opt.compute_gradients(loss)
-        capped_grads_and_vars, gamma = self.capGrads(grads_and_vars)
+        capped_grads_and_vars= self.capGrads(grads_and_vars)#, 'SGD')
+
         optimizer = opt.apply_gradients(capped_grads_and_vars)
 
         correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(self.labels_placeholder, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        
 
+        
         # Start Training
         init = tf.initialize_all_variables()
         sess = tf.Session()
@@ -158,12 +128,24 @@ class Train(object):
             ind = np.random.randint(len(train_data), size = self.FLAGS_batchsize)
             data_batch, labels_batch = train_data[ind, :], train_labels[ind, :]
             feed_dict = {self.image_placeholder: data_batch, self.labels_placeholder: labels_batch}
-            _, train_loss, train_acc, c, g = sess.run([optimizer, loss, accuracy, grads_and_vars, gamma], feed_dict)
-            #print(train_loss, train_acc, c)
-            print(g)
-            
-        
+            #c, g, a_, a1_, a2_ = sess.run([capped_grads_and_vars, grads_and_vars, a, a1, a2], feed_dict)
+            _, train_loss, train_acc = sess.run([optimizer, loss, accuracy], feed_dict)
+            print(train_loss, train_acc)
 
+            '''
+            print('printing g')
+            for i in range(len(g)):
+                print(len(g[i][0]), len(g[i][1]))
+                print(g[i][0])
+                print(g[i][1])
+            
+            print('printing c')
+            for i in range(len(c)):
+                print(len(c[i][0]), len(c[i][1]))
+                print(c[i][0])
+                print(c[i][1])
+            '''
+            
 def main():
 
     train = Train()
@@ -171,3 +153,20 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+'''
+MNIST dataset: These parameters work well
+        self.FLAGS_hlayers = [3] # The structure of the network. H(i) is the number of hidden units in the i-th hidden layer
+        self.FLAGS_noutputs = 10
+        self.FLAGS_steps = 2000
+        self.FLAGS_batchsize = 1000
+        self.FLAGS_lambda = 10.0**6
+        self.FLAGS_eta = 0.00001
+        self.image_placeholder = tf.placeholder(dtype=tf.float32,shape=[None, 784])
+        self.labels_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, self.FLAGS_noutputs])
+
+
+
+
+
+'''
