@@ -4,19 +4,25 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.examples.tutorials.mnist import input_data
 from NeuralNet import *
+from cifar10_input import *
+from sklearn.preprocessing import OneHotEncoder
+from keras.utils import to_categorical
 
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]= '2'
 
 class Train(object):
     def __init__(self):
-        self.FLAGS_hlayers = [3] # The structure of the network. H(i) is the number of hidden units in the i-th hidden layer
+        self.FLAGS_hlayers = [4000, 4000] # The structure of the network. H(i) is the number of hidden units in the i-th hidden layer
         self.FLAGS_noutputs = 10
-        self.FLAGS_steps = 2000
+        self.FLAGS_nfeatures = 36*36*3
+        self.FLAGS_steps = 20000
         self.FLAGS_batchsize = 1000
         self.FLAGS_lambda = 10.0**6
-        self.FLAGS_eta = 0.00001
-        self.image_placeholder = tf.placeholder(dtype=tf.float32,shape=[None, 784])
+        self.FLAGS_eta = 0
+        self.FLAGS_padding_size = 2
+        
+        self.image_placeholder = tf.placeholder(dtype=tf.float32,shape=[None, self.FLAGS_nfeatures])
         self.labels_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, self.FLAGS_noutputs])
 
     def path_scale(self, gvs, depth):
@@ -87,12 +93,25 @@ class Train(object):
                 
 
     def prepareTrainData(self):
-        # Read training dataset here
+        '''
+        # MNIST dataset
         mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
         train_data, train_labels = mnist.train.images[:, :], mnist.train.labels[:, :] 
         print('train features', len(train_data), len(train_data[0]))
-        print('train labels', len(train_labels))
+        print('train labels', len(train_labels), len(train_labels[0]))
+        print(train_labels)
+        #return train_data, train_labels
+        '''
+        
+        # CIFAR10 dataset
+        train_data, train_labels = prepare_train_data(padding_size = self.FLAGS_padding_size)
+        train_data = np.reshape(train_data, [len(train_data), -1])
+        train_labels = to_categorical(train_labels)
+        print('train features', len(train_data), len(train_data[0]))
+        print('train labels', len(train_labels), len(train_labels[0]))
+        print(train_labels)
         return train_data, train_labels
+
         
     def train(self):
 
@@ -127,6 +146,9 @@ class Train(object):
             # generate the batches
             ind = np.random.randint(len(train_data), size = self.FLAGS_batchsize)
             data_batch, labels_batch = train_data[ind, :], train_labels[ind, :]
+            #print(len(data_batch), len(data_batch[0]), len(data_batch[0][0]))
+            print(len(labels_batch), len(labels_batch[0]))
+
             feed_dict = {self.image_placeholder: data_batch, self.labels_placeholder: labels_batch}
             #c, g, a_, a1_, a2_ = sess.run([capped_grads_and_vars, grads_and_vars, a, a1, a2], feed_dict)
             _, train_loss, train_acc = sess.run([optimizer, loss, accuracy], feed_dict)
@@ -147,7 +169,7 @@ class Train(object):
             '''
             
 def main():
-
+    
     train = Train()
     train.train()
 
@@ -165,6 +187,18 @@ MNIST dataset: These parameters work well
         self.image_placeholder = tf.placeholder(dtype=tf.float32,shape=[None, 784])
         self.labels_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, self.FLAGS_noutputs])
 
+CIFAR10 dataset: 
+        self.FLAGS_hlayers = [4000, 4000] # The structure of the network. H(i) is the number of hidden units in the i-th hidden layer
+        self.FLAGS_noutputs = 10
+        self.FLAGS_nfeatures = 36*36*3
+        self.FLAGS_steps = 20000
+        self.FLAGS_batchsize = 1000
+        self.FLAGS_lambda = 10.0**6
+        self.FLAGS_eta = 0
+        self.FLAGS_padding_size = 2
+        
+        self.image_placeholder = tf.placeholder(dtype=tf.float32,shape=[None, self.FLAGS_nfeatures])
+        self.labels_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, self.FLAGS_noutputs])
 
 
 
