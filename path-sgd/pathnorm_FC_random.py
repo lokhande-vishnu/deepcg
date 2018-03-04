@@ -11,14 +11,14 @@ import pandas as pd
 import random
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]= '1'
+os.environ["CUDA_VISIBLE_DEVICES"]= '3'
 
 class Train(object):
     def __init__(self):
         self.FLAGS_hlayers = [4000, 4000] # The structure of the network. H(i) is the number of hidden units in the i-th hidden layer
         self.FLAGS_noutputs = 10
         self.FLAGS_nfeatures = 32*32*3
-        self.FLAGS_steps = 15000
+        self.FLAGS_steps = 10000
         self.FLAGS_batchsize = 100
         self.FLAGS_lambda = 10.0**6
         self.FLAGS_eta = 0.01
@@ -33,7 +33,7 @@ class Train(object):
             gamma.append([None, None])
         gamma[0] = [tf.ones([1, gvs[0][1].get_shape()[0]], tf.float32), None]
         gamma[depth-1] = [None, tf.ones([gvs[len(gvs)-2][1].get_shape()[1], 1] , tf.float32)]
-        for i in range(1, depth-1):
+        for i in range(1, depth):
             gamma[i][0] = tf.matmul(gamma[i-1][0], tf.abs(tf.square(gvs[(i-1)*2][1]))) + tf.abs(tf.square(gvs[(i-1)*2+1][1]))
             j = depth-i-1
             gamma[j][1] = tf.matmul(tf.abs(tf.square(gvs[2*j][1])), gamma[j+1][1])
@@ -47,54 +47,60 @@ class Train(object):
 
         elif name == 'CONSTRAINT_PATH_NORM':
             depth = len(self.FLAGS_hlayers)+2
-            temp_grads_and_vars = [None]*len(grads_and_vars)            
+
+            j = random.randint(1,depth-1)
+            #capped_grads_and_vars = [None]*len(grads_and_vars)
             for i in range(len(grads_and_vars)):
-                temp_grads_and_vars[i] = [grads_and_vars[i][0], grads_and_vars[i][1]]
+                l = grads_and_vars[i][0].get_shape()
+                if len(l) == 2:
+                    grads_and_vars[i] = (tf.zeros([l[0],l[1]]), grads_and_vars[i][1]) #
+                else:
+                    grads_and_vars[i] = (tf.zeros(l), grads_and_vars[i][1]) #
                 
-            for j in range(1, depth):
-                gamma = self.path_scale(temp_grads_and_vars, depth)
-                gamma_j = tf.matmul(gamma[j-1][0], gamma[j][1], True, True)
-                bias_j = tf.transpose(gamma[j][1])
-                wb_j = tf.concat([gamma_j, bias_j], 0)
-                
-                gamma_j_root = tf.sqrt(wb_j)
-                gamma_j_root_dezero = tf.add(tf.cast(tf.equal(gamma_j_root, 0), tf.float32), gamma_j_root)
-                gradient = temp_grads_and_vars[(j-1)*2][0]
-                gradientTheta = temp_grads_and_vars[(j-1)*2+1][0]
-                gradientTheta = tf.reshape(gradientTheta, [1, gradientTheta.get_shape().as_list()[-1]])
-                wb_grad = tf.concat([gradient, gradientTheta], axis = 0)
+            #for j in range(1, depth):
+
             
-                norm_grad_j = tf.norm(wb_grad)
-                normed_grad = wb_grad / (norm_grad_j)
-                c = tf.div(normed_grad, gamma_j_root_dezero) # Maybe gamma = 0
-                
-                # get the path norm components from the biases
-                temp_bias_path_norm = 0.0
-                for k_j in range(j+1, depth):
-                    bias_k_j = temp_grads_and_vars[(k_j-1)*2+1][1]
-                    bias_k_j = tf.reshape(bias_k_j, [1, bias_k_j.get_shape().as_list()[-1]])
-                    temp_bias_path_norm = temp_bias_path_norm + tf.matmul(tf.square(bias_k_j), gamma[k_j][1])
-                print(temp_bias_path_norm)
-                lambda_j = self.FLAGS_lambda - temp_bias_path_norm
+            gamma = self.path_scale(grads_and_vars, depth)
+            gamma_j = tf.matmul(gamma[j-1][0], gamma[j][1], True, True)
+            
+            bias_j = tf.transpose(gamma[j][1])
+            wb_j = tf.concat([gamma_j, bias_j], 0)
+            
+            
+            gamma_j_root = tf.sqrt(wb_j)
+            gamma_j_root_dezero = tf.add(tf.cast(tf.equal(gamma_j_root, 0), tf.float32), gamma_j_root)
+            
+            gradient = grads_and_vars[(j-1)*2][0]
+            gradientTheta = grads_and_vars[(j-1)*2+1][0]
+            gradientTheta = tf.reshape(gradientTheta, [1, gradientTheta.get_shape().as_list()[-1]])
+            wb_grad = tf.concat([gradient, gradientTheta], axis = 0)
+            
+            norm_grad_j = tf.norm(wb_grad)
+            normed_grad = wb_grad / (norm_grad_j)
+            c = tf.div(normed_grad, gamma_j_root_dezero) # Maybe gamma = 0
+            
+            # get the path norm components from the biases
+            temp_bias_path_norm = 0.0
+            for k_j in range(j+1, depth):
+                bias_k_j = grads_and_vars[(k_j-1)*2+1][1]
+                bias_k_j = tf.reshape(bias_k_j, [1, bias_k_j.get_shape().as_list()[-1]])
+                temp_bias_path_norm = temp_bias_path_norm + tf.matmul(tf.square(bias_k_j), gamma[k_j][1])
+            print(temp_bias_path_norm)
+            lambda_j = self.FLAGS_lambda - temp_bias_path_norm
         
-                s_j = tf.multiply(-tf.sqrt(lambda_j), c)
-                
-                nrows, ncols = s_j.get_shape().as_list()
-                w_j = tf.slice(s_j, [0, 0], [nrows-1, ncols])
-                b_j = tf.slice(s_j, [nrows-1, 0], [1, ncols])
-                b_j = tf.reshape(b_j, [gradientTheta.get_shape().as_list()[-1]])
-
-                # Updating the weights and biases
-                temp_grads_and_vars[(j-1)*2][0] = (1-self.FLAGS_eta)*temp_grads_and_vars[(j-1)*2][0] + self.FLAGS_eta*w_j
-                temp_grads_and_vars[(j-1)*2+1][0] = (1-self.FLAGS_eta)*temp_grads_and_vars[(j-1)*2+1][0] + self.FLAGS_eta*b_j
-
-                # for zero weight; don't do bias
-                temp_grads_and_vars[(j-1)*2][0] = tf.add(10**(-7)*tf.cast(tf.equal(temp_grads_and_vars[(j-1)*2][0], 0), tf.float32), temp_grads_and_vars[(j-1)*2][0])
-
-                
-            for i in range(len(grads_and_vars)):
-                grads_and_vars[i] = ((grads_and_vars[i][0]-temp_grads_and_vars[i][0]), grads_and_vars[i][1])
+            s_j = tf.multiply(-tf.sqrt(lambda_j), c)
             
+            nrows, ncols = s_j.get_shape().as_list()
+            w_j = tf.slice(s_j, [0, 0], [nrows-1, ncols])
+            b_j = tf.slice(s_j, [nrows-1, 0], [1, ncols])
+            b_j = tf.reshape(b_j, [gradientTheta.get_shape().as_list()[-1]])
+
+            # Updating the weights and biases
+        
+            grads_and_vars[(j-1)*2] = (grads_and_vars[(j-1)*2][1]-w_j, grads_and_vars[(j-1)*2][1])
+            # Convert row vector to column vector
+            grads_and_vars[(j-1)*2+1] = (grads_and_vars[(j-1)*2+1][1]-b_j, grads_and_vars[(j-1)*2+1][1])
+                
             return grads_and_vars
                 
 
@@ -134,7 +140,7 @@ class Train(object):
         For eg., grads_and_vars = [(g_Wh1, Wh1), (g_bh1, bh1), (g_Wh2, Wh2), (g_bh2, bh2)]
         '''
         grads_and_vars = opt.compute_gradients(loss)
-        capped_grads_and_vars= self.capGrads(grads_and_vars, 'SGD')
+        capped_grads_and_vars= self.capGrads(grads_and_vars)#, 'SGD')
 
         optimizer = opt.apply_gradients(capped_grads_and_vars)
 
@@ -158,7 +164,7 @@ class Train(object):
             ind = np.random.randint(len(train_data), size = self.FLAGS_batchsize)
             data_batch, labels_batch = train_data[ind, :], train_labels[ind, :]
             #print(len(data_batch), len(data_batch[0]), len(data_batch[0][0]))
-            #print(len(labels_batch), len(labels_batch[0]))
+            print(len(labels_batch), len(labels_batch[0]))
 
             feed_dict = {self.image_placeholder: data_batch, self.labels_placeholder: labels_batch}
             #c, g, a_, a1_, a2_ = sess.run([capped_grads_and_vars, grads_and_vars, a, a1, a2], feed_dict)
