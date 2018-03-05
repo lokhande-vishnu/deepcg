@@ -2,11 +2,12 @@ import tensorflow as tf
 import numpy as np
 
 def create_variables(name, shape):
-    new_variables = tf.get_variable(name = name, shape = shape)
+    new_variables = tf.get_variable(name = name, shape = shape, initializer = tf.random_normal_initializer())
     return new_variables
 
 def inference(input, noutputs, hlayernum, reuse):
     layers = []
+    Wbs = []
     layers.append(input)
     hlayernum.insert(0, input.get_shape().as_list()[-1])
     hlayernum.append(noutputs)
@@ -18,6 +19,8 @@ def inference(input, noutputs, hlayernum, reuse):
             b = create_variables(name = 'bias%d' % i, shape = [hlayernum[i]])
             h = tf.matmul(layers[i-1], W) + b 
             layers.append(h)
-    return layers[-1]
+            Wbs.append(W)
+            Wbs.append(b)
+    return layers[-1], Wbs
 
     
