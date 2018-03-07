@@ -6,9 +6,11 @@ from tensorflow.examples.tutorials.mnist import input_data
 from NeuralNet import *
 from cifar10_input import *
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import LabelEncoder
 from keras.utils import to_categorical
 import pandas as pd
 import random
+import scipy.io as spio
 
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]= '1'
@@ -28,7 +30,9 @@ class Train(object):
         self.labels_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, self.FLAGS_noutputs])
 
         
-    def path_scale(self, wbs, depth):
+    def path_scale(self, wbs, depth, j):
+        self.savewb = wbs
+        self.savej = j        
         gamma = []
         for _ in range(depth):
             gamma.append([None, None])
@@ -53,7 +57,7 @@ class Train(object):
             depth = len(self.FLAGS_hlayers)+2
             print('**********', wbs_op, len(wbs_op))
             for j in range(1, depth):
-                gamma = self.path_scale(wbs, depth)
+                gamma = self.path_scale(wbs, depth, j)
                 gamma_j = tf.matmul(gamma[j-1][0], gamma[j][1], True, True)
                 bias_j = tf.transpose(gamma[j][1])
                 wb_j = tf.concat([gamma_j, bias_j], 0)
@@ -124,15 +128,39 @@ class Train(object):
         print(train_labels)
         return train_data, train_labels
 
+    def to_onehot(self, values):
+        print('initial', values)
+        print('set', set(values))
         
+        # integer encode
+        label_encoder = LabelEncoder()
+        integer_encoded = label_encoder.fit_transform(values)
+        print('intenc', integer_encoded)
+        # binary encode
+        onehot_encoder = OneHotEncoder(sparse=False)
+        integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
+        onehot_encoded = onehot_encoder.fit_transform(integer_encoded)
+        return onehot_encoded
+    
     def train(self):
 
+        train_data = spio.loadmat('X_train.mat', squeeze_me=True)['X_train']
+        train_labels = spio.loadmat('Y_train.mat', squeeze_me=True)['Y_train']
+        train_labels = self.to_onehot(train_labels)
+        print('train_labels', train_labels)
+        
         # Preparing the training data
-        train_data, train_labels = self.prepareTrainData()
+        #train_data, train_labels = self.prepareTrainData()
+        #print(train_labels)
+        #return
         
         # Build the train graph
         logits, wbs = inference(self.image_placeholder, self.FLAGS_noutputs, self.FLAGS_hlayers[:], reuse = False)
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_placeholder, logits=logits))
+        
+        logits_softmax = tf.nn.softmax(logits)
+        loss = tf.reduce_mean(-tf.reduce_sum(self.labels_placeholder * tf.log(logits_softmax), reduction_indices=[1]))
+        
+        #loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_placeholder, logits=logits))
         grad_wbs = tf.gradients(xs= wbs, ys= loss)
         wbs_op = [None]*len(wbs)
         self.capGrads(wbs, wbs_op, grad_wbs)
@@ -159,10 +187,6 @@ class Train(object):
         sess = tf.Session()
         sess.run(init)
         
-        
-
-        
-
         # These lists are used to save a csv file at last
         step_list = []
         train_error_list = []
@@ -182,16 +206,25 @@ class Train(object):
             feed_dict = {self.image_placeholder: data_batch, self.labels_placeholder: labels_batch}
             #c, g, a_, a1_, a2_ = sess.run([capped_grads_and_vars, grads_and_vars, a, a1, a2], feed_dict)
             #_, train_loss, train_acc = sess.run([optimizer, loss, accuracy], feed_dict)
+            wbs_, logits_ = sess.run([wbs, logits], feed_dict)
             train_loss, train_acc, cp = sess.run([loss, accuracy, correct_prediction], feed_dict)
             sess.run([wbs_op[-1], wbs_op[-2]], feed_dict)
+            #savewb, savej = sess.run([self.savewb, self.savej], feed_dict)
+
             #for iii in range(len(wbs_op)):
             #    sess.run(wbs_op[iii], feed_dict)                
 
-            if i % 1 == 0:
+            if i % 1 == 0 :
+                #print('inputs', data_batch)
+                #print('wbs', wbs_)
+                #print('logits_', logits_)
                 print(i, self.FLAGS_eta, train_loss, train_acc)
+                #print(i, savej, savewb)
+                #print('logits_softmax', logits_softmax_)
+                #print('logits', logits_)
             step_list.append(i)
-            train_error_list.append(1-train_acc)
-            train_loss_list.append(train_loss)
+            #train_error_list.append(1-train_acc)
+            #train_loss_list.append(train_loss)
 
 
             '''
@@ -207,9 +240,9 @@ class Train(object):
                 print(c[i][0])
                 print(c[i][1])
             '''
-        df = pd.DataFrame(data={'step':step_list, 'train_error':train_error_list, 'train_loss':train_loss_list})
-        df.to_csv('stat_pathnorm_trial.csv')
-
+        #df = pd.DataFrame(data={'step':step_list, 'train_error':train_error_list, 'train_loss':train_loss_list})
+        #df.to_csv('stat_pathnorm_trial.csv')
+        
             
 def main():
     

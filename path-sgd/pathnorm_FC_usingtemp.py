@@ -13,15 +13,21 @@ import random
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]= '1'
 
+'''
+Code generating nan gradients when called compute_gradients. Happens after 5 iterations.
+
+'''
+
+
 class Train(object):
     def __init__(self):
         self.FLAGS_hlayers = [4000, 4000] # The structure of the network. H(i) is the number of hidden units in the i-th hidden layer
         self.FLAGS_noutputs = 10
         self.FLAGS_nfeatures = 32*32*3
-        self.FLAGS_steps = 15000
+        self.FLAGS_steps = 20
         self.FLAGS_batchsize = 100
-        self.FLAGS_lambda = 10.0**6
-        self.FLAGS_eta = 0.01
+        self.FLAGS_lambda = 10.0**8
+        self.FLAGS_eta = 10**(-6)
         self.FLAGS_padding_size = 0
         
         self.image_placeholder = tf.placeholder(dtype=tf.float32,shape=[None, self.FLAGS_nfeatures])
@@ -92,7 +98,7 @@ class Train(object):
                 temp_grads_and_vars[(j-1)*2+1][1] = (1-self.FLAGS_eta)*temp_grads_and_vars[(j-1)*2+1][1] + self.FLAGS_eta*b_j
 
                 # for zero weight; don't do bias
-                temp_grads_and_vars[(j-1)*2][1] = tf.add(10**(-7)*tf.cast(tf.equal(temp_grads_and_vars[(j-1)*2][1], 0), tf.float32), temp_grads_and_vars[(j-1)*2][1])
+                #temp_grads_and_vars[(j-1)*2][1] = tf.add(10**(-7)*tf.cast(tf.equal(temp_grads_and_vars[(j-1)*2][1], 0), tf.float32), temp_grads_and_vars[(j-1)*2][1])
 
                 
             for i in range(len(grads_and_vars)):
@@ -126,10 +132,14 @@ class Train(object):
 
         # Preparing the training data
         train_data, train_labels = self.prepareTrainData()
+        print('train_data', train_data)
         
         # Build the train graph
-        logits = inference(self.image_placeholder, self.FLAGS_noutputs, self.FLAGS_hlayers[:], reuse = False)
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_placeholder, logits=logits))
+        logits,_ = inference(self.image_placeholder, self.FLAGS_noutputs, self.FLAGS_hlayers[:], reuse = False)
+        #loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_placeholder, logits=logits))
+        logits_softmax = tf.nn.softmax(logits)
+        loss = tf.reduce_mean(-tf.reduce_sum(self.labels_placeholder * tf.log(logits_softmax), reduction_indices=[1]))
+
         opt = tf.train.GradientDescentOptimizer(learning_rate = self.FLAGS_eta)
 
         '''
@@ -139,13 +149,12 @@ class Train(object):
         variable/weight index = 1
         '''
         grads_and_vars = opt.compute_gradients(loss)
-        capped_grads_and_vars= self.capGrads(grads_and_vars, 'SGD')
+        capped_grads_and_vars= self.capGrads(grads_and_vars)
 
         optimizer = opt.apply_gradients(capped_grads_and_vars)
 
         correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(self.labels_placeholder, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
         
         # Start Training
         init = tf.initialize_all_variables()
@@ -167,7 +176,16 @@ class Train(object):
 
             feed_dict = {self.image_placeholder: data_batch, self.labels_placeholder: labels_batch}
             #c, g, a_, a1_, a2_ = sess.run([capped_grads_and_vars, grads_and_vars, a, a1, a2], feed_dict)
+            logits_ = sess.run(logits, feed_dict)
+            gvss = sess.run(grads_and_vars, feed_dict)
+            cgvss = sess.run(capped_grads_and_vars, feed_dict)
             _, train_loss, train_acc = sess.run([optimizer, loss, accuracy], feed_dict)
+
+            print('gvss', i)
+            print(gvss)
+            print('cgvss', i)
+            print(cgvss)
+
             print(train_loss, train_acc)
             step_list.append(i)
             train_error_list.append(1-train_acc)
