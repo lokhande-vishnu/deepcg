@@ -63,8 +63,6 @@ class Train(object):
 
         predictions = tf.nn.softmax(logits)
         self.train_top1_error = self.top_k_error(predictions, self.label_placeholder, 1)
-
-
         # Validation loss
         self.vali_loss = self.loss(vali_logits, self.vali_label_placeholder)
         vali_predictions = tf.nn.softmax(vali_logits)
