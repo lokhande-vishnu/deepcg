@@ -15,7 +15,10 @@ More details about the project can be found in [arxiv](https://arxiv.org/abs/180
 
 
 ## Code details
-See resnet-in-tensorflow  for the resnet experiments
-See dcgan-completion.tensorflow for GAN experiments
-See path-sgd for path-norm experiments
-See norms.py for various CG updates for simple constrained problems mentioned in the main paper.
+See *resnet-in-tensorflow*  for the resnet experiments
+
+See *dcgan-completion.tensorflow* for GAN experiments
+
+See *path-sgd* for path-norm experiments
+
+See *norms.py* for various CG updates for simple constrained problems mentioned in the main paper.
