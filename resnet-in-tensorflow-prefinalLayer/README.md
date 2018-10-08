@@ -1,5 +1,5 @@
-# Resnets implementation on cifar10 dataset
+This is a test repository
 
-## Currently, doing pathnorm for the final layer, changes introduced are-
+Pathnorm for final layer. Changes introduced -
 shuffle = False
 returning two params instead of one from the inference method in resnet.py
